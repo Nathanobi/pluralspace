@@ -1,0 +1,538 @@
+// ── PROXYS ──
+let proxySort = 'alpha-name', proxySearch = '';
+let editingProxyId = null, selectedPrenomForProxy = null;
+// Stack de modaux proxy ouverts (pour éviter la surcharge)
+const MAX_PROXY_STACK = 3;
+let proxyModalStack = [];
+
+// ── BANNIÈRE SANS PROXY ──
+function renderNoProxyBanner() {
+  const sans   = prenoms.filter(p => !proxys.find(px => px.prenomId===p.id));
+  const banner = document.getElementById('no-proxy-banner');
+  if (sans.length===0) { banner.style.display='none'; return; }
+  banner.style.display='';
+  document.getElementById('no-proxy-count-label').textContent = `${sans.length} prénom${sans.length>1?'s':''} sans proxy`;
+  const grid = document.getElementById('no-proxy-grid');
+  grid.innerHTML = sans.map(p =>
+    `<div class="no-proxy-chip"><span>${esc(p.name)}</span><button data-quick-proxy="${p.id}">+ Proxy</button></div>`
+  ).join('');
+  grid.querySelectorAll('[data-quick-proxy]').forEach(btn => {
+    btn.addEventListener('click', () => { const p=prenoms.find(x=>x.id===btn.dataset.quickProxy); if(p) openProxyModal(null,p); });
+  });
+}
+
+let noProxyListOpen = false;
+document.getElementById('btn-toggle-no-proxy').addEventListener('click', () => {
+  noProxyListOpen = !noProxyListOpen;
+  document.getElementById('no-proxy-list').style.display = noProxyListOpen ? '' : 'none';
+  document.getElementById('btn-toggle-no-proxy').textContent = noProxyListOpen ? 'Masquer' : 'Afficher';
+});
+
+// ── PANNEAU LATÉRAL ──
+function renderProxySideList() {
+  const container = document.getElementById('proxy-side-list');
+  if (!container) return;
+  // Récupérer recherche + filtres du panneau
+  const q        = (document.getElementById('proxy-side-search').value||'').trim().toLowerCase();
+  const tagFilts = Array.from(document.querySelectorAll('#proxy-side-tag-filters .side-tag-pill.active-pill')).map(el=>el.dataset.sideTag);
+  const sort     = (document.querySelector('#proxy-side-sort-btns .side-sort.active')||{}).dataset.sideSort || 'alpha';
+
+  // Grouper proxys par prénom
+  const groups = {};
+  proxys.forEach(px => { if(!groups[px.prenomId]) groups[px.prenomId]=[]; groups[px.prenomId].push(px); });
+
+  let items = prenoms.filter(p => groups[p.id]);
+  // Filtre texte
+  if (q) items = items.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    groups[p.id].some(px=>(px.prefix||'').toLowerCase().includes(q)||(px.suffix||'').toLowerCase().includes(q))
+  );
+  // Filtre tags
+  if (tagFilts.length>0) items = items.filter(p => tagFilts.every(tid=>(p.tags||[]).includes(tid)));
+  // Tri
+  if (sort==='alpha') items.sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  else items.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+
+  if (!items.length) { container.innerHTML='<div style="font-size:12px;color:var(--text3);padding:6px;">Aucun résultat</div>'; return; }
+  container.innerHTML = items.map(p => {
+    const pxList  = groups[p.id]||[];
+    const valsHtml = pxList.map(px=>`<span style="font-size:11px;color:var(--accent3);background:rgba(155,111,181,.12);border:1px solid rgba(155,111,181,.25);border-radius:10px;padding:2px 7px;">${esc((px.prefix||'')+'text'+(px.suffix||''))}</span>`).join(' ');
+    const pTags   = (p.tags||[]).map(tid=>tags.find(t=>t.id===tid)).filter(Boolean);
+    const tagsH   = pTags.map(t=>{ const c=getTagColor(t.color); return `<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:${c.bg};color:${c.text};border:1px solid ${c.border};">${esc(t.name)}</span>`; }).join(' ');
+    return `<div style="background:var(--bg2);border-radius:8px;padding:8px 10px;">
+      <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--text);font-weight:600;">${esc(p.name)}</div>
+        ${tagsH}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;">${valsHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+// Construire les contrôles du panneau latéral (appelé à l'ouverture du modal)
+function buildProxySidePanelControls() {
+  // Tags filter
+  const tagFilterEl = document.getElementById('proxy-side-tag-filters');
+  tagFilterEl.innerHTML = tags.map(t => {
+    const c = getTagColor(t.color);
+    return `<button class="side-tag-pill" data-side-tag="${t.id}" style="font-size:11px;padding:3px 8px;border-radius:12px;background:transparent;border:1px solid ${c.border};color:${c.text};cursor:pointer;font-family:inherit;">${esc(t.name)}</button>`;
+  }).join('');
+  tagFilterEl.querySelectorAll('.side-tag-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('active-pill');
+      const c = getTagColor(tags.find(t=>t.id===btn.dataset.sideTag)?.color||'lavande');
+      btn.style.background = btn.classList.contains('active-pill') ? c.bg : 'transparent';
+      renderProxySideList();
+    });
+  });
+  // Sort buttons
+  const sortEl = document.getElementById('proxy-side-sort-btns');
+  sortEl.querySelectorAll('.side-sort').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sortEl.querySelectorAll('.side-sort').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderProxySideList();
+    });
+  });
+}
+
+document.getElementById('proxy-side-search').addEventListener('input', renderProxySideList);
+
+// ── APERÇU + CONFLIT ──
+function updateProxyPreview() {
+  const prefix = document.getElementById('proxy-prefix-input').value;
+  const suffix = document.getElementById('proxy-suffix-input').value;
+  document.getElementById('proxy-preview-prefix').textContent = prefix;
+  document.getElementById('proxy-preview-name').textContent   = selectedPrenomForProxy ? selectedPrenomForProxy.name : 'Prénom';
+  document.getElementById('proxy-preview-suffix').textContent = suffix;
+  const conflict = document.getElementById('proxy-conflict-info');
+  conflict.style.display = 'none';
+  if (prefix || suffix) {
+    const dupPx = proxys.find(px => {
+      if (editingProxyId && px.id===editingProxyId) return false;
+      return px.prefix===prefix && (px.suffix||'')===(suffix||'');
+    });
+    if (dupPx) {
+      const dupPrenom = prenoms.find(p=>p.id===dupPx.prenomId);
+      document.getElementById('proxy-conflict-prenom-name').textContent = dupPrenom ? dupPrenom.name : '?';
+      document.getElementById('proxy-conflict-proxy-val').textContent   = (dupPx.prefix||'')+'text'+(dupPx.suffix||'');
+      conflict.style.display = '';
+      document.getElementById('btn-proxy-edit-existing').onclick = () => {
+        // Ouvre une nouvelle fenêtre proxy empilée (max MAX_PROXY_STACK)
+        if (proxyModalStack.length >= MAX_PROXY_STACK) {
+          toast(`Maximum ${MAX_PROXY_STACK} fenêtres de proxy ouvertes.`, 'error');
+          return;
+        }
+        openProxyModal(dupPx, null, true); // true = stacked
+      };
+    }
+  }
+}
+
+document.getElementById('proxy-prefix-input').addEventListener('input', updateProxyPreview);
+document.getElementById('proxy-suffix-input').addEventListener('input', updateProxyPreview);
+
+// ── DROPDOWN PRÉNOM ──
+document.getElementById('proxy-prenom-input').addEventListener('input', function() {
+  const q  = this.value.trim();
+  const dd = document.getElementById('proxy-prenom-dropdown');
+  if (!q) { dd.style.display='none'; return; }
+  const matches = prenoms.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())).slice(0,12);
+  const exact   = prenoms.find(p=>p.name.toLowerCase()===q.toLowerCase());
+  dd.style.display='';
+  dd.innerHTML = matches.map(p => {
+    const cnt = proxys.filter(px=>px.prenomId===p.id).length;
+    return `<div class="prenom-dropdown-item" data-pick="${p.id}"><span>${esc(p.name)}</span>${cnt>0?`<span class="already-has">${cnt} proxy${cnt>1?'s':''}</span>`:''}</div>`;
+  }).join('') + (!exact ? `<div class="prenom-dropdown-item" data-proxy-create="${esc(q)}" style="color:var(--accent2);border-top:1px solid var(--border2);"><span>✦ Créer "${esc(q)}"</span></div>` : '');
+  dd.querySelectorAll('[data-pick]').forEach(item => {
+    item.addEventListener('click', () => selectPrenomForProxy(prenoms.find(p=>p.id===item.dataset.pick)));
+  });
+  dd.querySelectorAll('[data-proxy-create]').forEach(item => {
+    item.addEventListener('click', async () => {
+      const name = item.dataset.proxyCreate;
+      const newP = { id:uid(), name, tags:[], notes:'', hasImage:false, imageId:null, createdAt:Date.now() };
+      await dbPut('prenoms', newP);
+      prenoms.push(newP);
+      renderPrenoms(); renderNoProxyBanner(); renderProxySideList(); updateStats();
+      selectPrenomForProxy(newP);
+      toast(`Prénom "${name}" créé.`, 'success');
+    });
+  });
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#proxy-prenom-input') && !e.target.closest('#proxy-prenom-dropdown'))
+    document.getElementById('proxy-prenom-dropdown').style.display='none';
+});
+
+function selectPrenomForProxy(prenom) {
+  selectedPrenomForProxy = prenom;
+  document.getElementById('proxy-prenom-input').value = '';
+  document.getElementById('proxy-prenom-dropdown').style.display='none';
+  const sel = document.getElementById('proxy-prenom-selected');
+  sel.style.display='inline-flex';
+  sel.innerHTML = `<span>${esc(prenom.name)}</span><span class="deselect" id="proxy-deselect">✕</span>`;
+  document.getElementById('proxy-deselect').addEventListener('click', () => {
+    selectedPrenomForProxy=null; sel.style.display='none'; updateProxyPreview();
+  });
+  updateProxyPreview();
+}
+
+// ── MULTI-PROXY INPUT ──
+// Les lignes du formulaire multi-proxy sont gérées dynamiquement
+function getProxyRows() {
+  return Array.from(document.querySelectorAll('.proxy-row-entry')).map(row => ({
+    prefix: row.querySelector('.proxy-row-prefix').value,
+    suffix: row.querySelector('.proxy-row-suffix').value,
+  })).filter(r => r.prefix.trim() || r.suffix.trim());
+}
+
+function renderProxyRows() {
+  const container = document.getElementById('proxy-rows-container');
+  // Garder au moins une ligne
+  const rows = container.querySelectorAll('.proxy-row-entry');
+  if (rows.length===0) addProxyRow();
+}
+
+function addProxyRow(prefix='', suffix='') {
+  const container = document.getElementById('proxy-rows-container');
+  const idx = container.querySelectorAll('.proxy-row-entry').length;
+  const div = document.createElement('div');
+  div.className = 'proxy-row-entry';
+  div.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+  div.innerHTML = `
+    <input type="text" class="input proxy-row-prefix" placeholder="Préfixe" value="${esc(prefix)}" style="flex:1;" />
+    <input type="text" class="input proxy-row-suffix" placeholder="Suffixe" value="${esc(suffix)}" style="flex:1;" />
+    <button type="button" class="btn btn-ghost btn-sm btn-icon proxy-row-del" title="Supprimer cette ligne">✕</button>
+  `;
+  div.querySelector('.proxy-row-del').addEventListener('click', () => {
+    const rows = container.querySelectorAll('.proxy-row-entry');
+    if (rows.length>1) div.remove(); else { div.querySelector('.proxy-row-prefix').value=''; div.querySelector('.proxy-row-suffix').value=''; }
+    updateProxyPreviewFromFirst();
+  });
+  // Mettre à jour l'aperçu depuis la première ligne
+  div.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateProxyPreviewFromFirst));
+  container.appendChild(div);
+}
+
+function updateProxyPreviewFromFirst() {
+  const first = document.querySelector('.proxy-row-entry');
+  if (!first) return;
+  const prefix = first.querySelector('.proxy-row-prefix').value;
+  const suffix = first.querySelector('.proxy-row-suffix').value;
+  // Sync avec les inputs cachés pour la logique de conflit
+  document.getElementById('proxy-prefix-input').value = prefix;
+  document.getElementById('proxy-suffix-input').value = suffix;
+  updateProxyPreview();
+}
+
+document.getElementById('btn-add-proxy-row').addEventListener('click', () => addProxyRow());
+
+// ── OUVERTURE/FERMETURE MODAL ──
+function openProxyModal(proxy, preselected, stacked=false) {
+  proxy = proxy||null; preselected = preselected||null;
+
+  if (stacked) {
+    // Créer un nouveau modal empilé (cloné)
+    const existingBase = document.getElementById('modal-proxy');
+    const clone = existingBase.cloneNode(true);
+    const newId = 'modal-proxy-stack-' + Date.now();
+    clone.id = newId;
+    clone.style.zIndex = 150 + proxyModalStack.length * 10;
+    // Décaler légèrement pour effet "empilé"
+    clone.querySelector('.modal').style.transform = `translate(${proxyModalStack.length*16}px, ${proxyModalStack.length*16}px)`;
+    document.body.appendChild(clone);
+    proxyModalStack.push(newId);
+    // Fermeture du clone
+    clone.querySelector('.modal-close').addEventListener('click', () => closeStackedProxyModal(newId));
+    clone.querySelector('[id$="-cancel"]') && clone.querySelector('[id$="-cancel"]').addEventListener('click', () => closeStackedProxyModal(newId));
+    // Init du clone
+    _initProxyModal(clone, proxy, preselected, newId);
+    clone.classList.add('open');
+    return;
+  }
+
+  editingProxyId = proxy ? proxy.id : null;
+  document.getElementById('modal-proxy-title').textContent = proxy ? 'Modifier le proxy' : 'Nouveau proxy';
+  // Reset champs
+  document.getElementById('proxy-prenom-input').value='';
+  document.getElementById('proxy-prenom-dropdown').style.display='none';
+  document.getElementById('proxy-conflict-info').style.display='none';
+  document.getElementById('proxy-prenom-selected').style.display='none';
+  selectedPrenomForProxy=null;
+  // Reset lignes multi-proxy
+  const container = document.getElementById('proxy-rows-container');
+  container.innerHTML='';
+  if (proxy) {
+    addProxyRow(proxy.prefix||'', proxy.suffix||'');
+    const p = prenoms.find(x=>x.id===proxy.prenomId);
+    if (p) selectPrenomForProxy(p);
+  } else {
+    addProxyRow();
+    if (preselected) selectPrenomForProxy(preselected);
+  }
+  updateProxyPreviewFromFirst();
+  buildProxySidePanelControls();
+  renderProxySideList();
+  document.getElementById('modal-proxy').classList.add('open');
+  setTimeout(() => document.querySelector('.proxy-row-prefix') && document.querySelector('.proxy-row-prefix').focus(), 50);
+}
+
+function _initProxyModal(modal, proxy, preselected, modalId) {
+  // Pour le modal empilé : remplir les valeurs
+  const prefixInp = modal.querySelector('.proxy-row-prefix');
+  const suffixInp = modal.querySelector('.proxy-row-suffix');
+  if (proxy) { if(prefixInp) prefixInp.value=proxy.prefix||''; if(suffixInp) suffixInp.value=proxy.suffix||''; }
+  // Save button
+  const saveBtn = modal.querySelector('[id$="-save"]');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const prefix = prefixInp ? prefixInp.value : '';
+      const suffix = suffixInp ? suffixInp.value : '';
+      if (!prefix.trim()&&!suffix.trim()) { toast('Préfixe ou suffixe requis.','error'); return; }
+      if (proxy) { proxy.prefix=prefix; proxy.suffix=suffix; await dbPut('proxys',proxy); toast('Proxy modifié.','success'); logHistory('Proxy modifié', 'proxy'); }
+      closeStackedProxyModal(modalId);
+      renderProxys(); renderNoProxyBanner(); renderPrenoms(); renderProxySideList(); updateStats();
+      // Rafraîchir l'aperçu dans le modal de base
+      updateProxyPreviewFromFirst();
+    });
+  }
+}
+
+function closeStackedProxyModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  proxyModalStack = proxyModalStack.filter(x=>x!==id);
+}
+
+function closeProxyModal() {
+  document.getElementById('modal-proxy').classList.remove('open');
+  // Fermer aussi les empilés
+  proxyModalStack.forEach(id => { const el=document.getElementById(id); if(el) el.remove(); });
+  proxyModalStack = [];
+  editingProxyId=null; selectedPrenomForProxy=null;
+}
+
+async function saveProxy() {
+  if (!selectedPrenomForProxy) { toast('Veuillez sélectionner un prénom.','error'); return; }
+  const rows = getProxyRows();
+  if (rows.length===0) { toast('Au moins un proxy (préfixe ou suffixe) est requis.','error'); return; }
+  // Vérif doublons
+  for (const row of rows) {
+    const dup = proxys.find(px => {
+      if (editingProxyId && px.id===editingProxyId) return false;
+      return px.prefix===row.prefix && (px.suffix||'')===(row.suffix||'');
+    });
+    if (dup) { toast('Un proxy est déjà utilisé — voir le conflit.','error'); return; }
+  }
+  if (editingProxyId && rows.length===1) {
+    // Mode édition d'un proxy existant (une seule ligne)
+    const px = proxys.find(x=>x.id===editingProxyId);
+    px.prefix=rows[0].prefix; px.suffix=rows[0].suffix; px.prenomId=selectedPrenomForProxy.id;
+    await dbPut('proxys',px);
+    toast('Proxy modifié.','success');
+  } else {
+    // Créer tous les proxys
+    for (const row of rows) {
+      const px = { id:uid(), prenomId:selectedPrenomForProxy.id, prefix:row.prefix, suffix:row.suffix, createdAt:Date.now() };
+      await dbPut('proxys',px);
+      proxys.push(px);
+    }
+    toast(`${rows.length} proxy${rows.length>1?'s':''} créé${rows.length>1?'s':''} pour "${selectedPrenomForProxy.name}".`,'success'); logHistory(`${rows.length} proxy créé(s) pour ${selectedPrenomForProxy.name}`, 'proxy');
+  }
+  closeProxyModal();
+  renderProxys(); renderNoProxyBanner(); renderPrenoms(); renderProxySideList(); updateStats();
+}
+
+document.getElementById('modal-proxy-close').addEventListener('click',  closeProxyModal);
+document.getElementById('modal-proxy-cancel').addEventListener('click', closeProxyModal);
+document.getElementById('btn-add-proxy').addEventListener('click',      () => openProxyModal());
+document.getElementById('modal-proxy-save').addEventListener('click',   saveProxy);
+
+// ── RENDER PROXYS ──
+function getFilteredProxys() {
+  let list = proxys.slice();
+  if (proxySearch) {
+    const q = proxySearch.toLowerCase();
+    list = list.filter(px => {
+      const p = prenoms.find(x=>x.id===px.prenomId);
+      return (p&&p.name.toLowerCase().includes(q))||(px.prefix||'').toLowerCase().includes(q)||(px.suffix||'').toLowerCase().includes(q);
+    });
+  }
+  if (proxySort==='alpha-name') list.sort((a,b)=>{
+    const na=prenoms.find(p=>p.id===a.prenomId); const nb=prenoms.find(p=>p.id===b.prenomId);
+    return (na?na.name:'').localeCompare(nb?nb.name:'','fr');
+  });
+  else if (proxySort==='alpha-proxy') list.sort((a,b)=>(a.prefix||'').localeCompare(b.prefix||'','fr'));
+  else if (proxySort==='chrono')      list.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  return list;
+}
+
+function renderProxys() {
+  const list  = getFilteredProxys();
+  const tbody = document.getElementById('proxy-tbody');
+  const empty = document.getElementById('proxy-empty');
+  const table = document.getElementById('proxy-table');
+  const lbl   = document.getElementById('proxys-count-label');
+  lbl.textContent = `${proxys.length} proxy${proxys.length!==1?'s':''} configuré${proxys.length!==1?'s':''}`;
+  if (list.length===0) { table.style.display='none'; empty.style.display=''; detectProxyConflicts(); return; }
+  table.style.display=''; empty.style.display='none';
+  detectProxyConflicts();
+
+  // Grouper par prénom (une ligne par prénom)
+  const prenomsDone = new Set();
+  const rows = [];
+  list.forEach(px => {
+    if (!prenomsDone.has(px.prenomId)) {
+      prenomsDone.add(px.prenomId);
+      const p = prenoms.find(x=>x.id===px.prenomId);
+      if (p) rows.push({ p, pxList: proxys.filter(x=>x.prenomId===p.id) });
+    }
+  });
+
+  tbody.innerHTML = rows.map(({p, pxList}) => {
+    const firstPx   = pxList[0];
+    const proxysHtml = pxList.map(px =>
+      `<span class="proxy-mini-pill" style="cursor:pointer;" data-proxy-edit="${px.id}" title="Modifier ce proxy">${esc((px.prefix||'')+'text'+(px.suffix||''))}</span>`
+    ).join(' ');
+    return `<tr>
+      <td class="proxy-name-cell">${esc(p.name)}</td>
+      <td>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+          ${proxysHtml}
+          <button class="btn btn-ghost btn-sm" data-add-proxy-for="${p.id}" style="padding:2px 8px;font-size:11px;margin-left:4px;">+ Proxy</button>
+        </div>
+      </td>
+      <td><div class="preview-bubble">${esc(firstPx.prefix||'')}<strong class="preview-name" style="white-space:pre;">${esc(p.name)}</strong>${esc(firstPx.suffix||'')}</div>
+        ${pxList.length>1?`<span style="font-size:11px;color:var(--text3);margin-left:6px;">+${pxList.length-1} autre${pxList.length-1>1?'s':''}</span>`:''}</td>
+      <td class="proxy-actions-cell"><div class="proxy-row-actions">
+        <button class="btn btn-danger btn-sm btn-icon" data-proxy-del-all="${p.id}" title="Supprimer tous les proxys">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('[data-proxy-edit]').forEach(el => {
+    el.addEventListener('click', e => { e.stopPropagation(); const px=proxys.find(x=>x.id===el.dataset.proxyEdit); if(px) openProxyModal(px); });
+  });
+  tbody.querySelectorAll('[data-add-proxy-for]').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); const p=prenoms.find(x=>x.id===btn.dataset.addProxyFor); if(p) openProxyModal(null,p); });
+  });
+  tbody.querySelectorAll('[data-proxy-del-all]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const p      = prenoms.find(x=>x.id===btn.dataset.proxyDelAll);
+      const pxList = proxys.filter(x=>x.prenomId===btn.dataset.proxyDelAll);
+      openConfirm(`Supprimer ${pxList.length>1?'tous les proxys':'le proxy'} de "${p?p.name:'?'}" ?`, async () => {
+        for (const px of pxList) await dbDelete('proxys', px.id);
+        proxys = proxys.filter(x=>x.prenomId!==btn.dataset.proxyDelAll);
+        toast('Proxy(s) supprimé(s).','success'); logHistory('Proxy(s) supprimé(s)', 'proxy');
+        renderProxys(); renderNoProxyBanner(); renderPrenoms(); renderProxySideList(); updateStats();
+      });
+    });
+  });
+}
+
+document.querySelectorAll('[data-proxy-sort]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    proxySort = btn.dataset.proxySort;
+    document.querySelectorAll('[data-proxy-sort]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderProxys();
+  });
+});
+document.getElementById('proxy-search').addEventListener('input', e => { proxySearch=e.target.value.trim(); renderProxys(); });
+
+// ── SIMULATEUR DE PROXY ──
+function runProxySimulator(input) {
+  const result = document.getElementById('proxy-sim-result');
+  if (!input || !input.trim()) { result.innerHTML = ''; return; }
+
+  // Chercher quel proxy correspond au message
+  // Algorithme : tester chaque proxy (prefix + suffix), longest-match en premier
+  let bestMatch = null;
+  let bestLen   = -1;
+
+  for (const px of proxys) {
+    const prefix = px.prefix || '';
+    const suffix = px.suffix || '';
+    // Le message doit commencer par prefix ET finir par suffix (si défini)
+    const startsOk = prefix === '' || input.startsWith(prefix);
+    const endsOk   = suffix === '' || input.endsWith(suffix);
+    if (!startsOk || !endsOk) continue;
+    // Au moins prefix ou suffix doit être non-vide (sinon ce serait un proxy vide)
+    if (prefix === '' && suffix === '') continue;
+    // Longueur totale du match = longueur prefix + suffix (pour privilégier les plus spécifiques)
+    const matchLen = prefix.length + suffix.length;
+    if (matchLen > bestLen) {
+      bestLen   = matchLen;
+      bestMatch = px;
+    }
+  }
+
+  if (!bestMatch) {
+    result.innerHTML = `<div class="sim-miss">Aucun proxy ne correspond à ce message.</div>`;
+    return;
+  }
+
+  const p   = prenoms.find(x=>x.id===bestMatch.prenomId);
+  const img = p && p.imageId ? images.find(x=>x.id===p.imageId) : null;
+
+  const prefix   = bestMatch.prefix || '';
+  const suffix   = bestMatch.suffix || '';
+  // Extraire le contenu du message (sans le proxy)
+  let msgContent = input;
+  if (prefix && msgContent.startsWith(prefix)) msgContent = msgContent.slice(prefix.length);
+  if (suffix && msgContent.endsWith(suffix))   msgContent = msgContent.slice(0, -suffix.length);
+  msgContent = msgContent.trim();
+
+  const avatarHtml = (img && img.dataUrl)
+    ? `<img src="${img.dataUrl}" />`
+    : `<span>✍</span>`;
+
+  const proxyDisplay = `${esc(prefix)}<span style="color:var(--text3);">nom</span>${esc(suffix)}`;
+
+  result.innerHTML = `<div class="sim-hit">
+    <div class="sim-hit-avatar">${avatarHtml}</div>
+    <div>
+      <div class="sim-hit-name">${esc(p ? p.name : '?')}</div>
+      <div class="sim-hit-proxy">${proxyDisplay}</div>
+    </div>
+    ${msgContent ? `<div class="sim-hit-message">${esc(msgContent)}</div>` : ''}
+  </div>`;
+}
+
+document.getElementById('proxy-sim-input').addEventListener('input', e => {
+  runProxySimulator(e.target.value);
+});
+
+// ── DÉTECTION DE CONFLITS ──
+// Un conflit = deux prénoms différents ont un proxy identique (même prefix ET même suffix)
+function detectProxyConflicts() {
+  const seen    = {};  // clé "prefix|suffix" → [prenomId, ...]
+  const wrap    = document.getElementById('proxy-conflicts-wrap');
+  const listEl  = document.getElementById('proxy-conflicts-list');
+
+  for (const px of proxys) {
+    const key = (px.prefix||'') + '|' + (px.suffix||'');
+    if (!seen[key]) seen[key] = [];
+    if (!seen[key].includes(px.prenomId)) seen[key].push(px.prenomId);
+  }
+
+  const conflicts = Object.entries(seen).filter(([, ids]) => ids.length > 1);
+
+  if (conflicts.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = '';
+  listEl.innerHTML = conflicts.map(([key, ids]) => {
+    const [prefix, suffix] = key.split('|');
+    const names = ids.map(id => { const p=prenoms.find(x=>x.id===id); return p?p.name:'?'; }).join(', ');
+    const proxyStr = `${prefix}nom${suffix}`;
+    return `<span class="conflict-chip">
+      <span class="conflict-chip-proxy">${esc(proxyStr)}</span>
+      <span class="conflict-chip-names">→ ${esc(names)}</span>
+    </span>`;
+  }).join('');
+}
