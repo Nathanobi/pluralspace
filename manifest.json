@@ -1,0 +1,31 @@
+{
+  "name": "Plural Space",
+  "short_name": "Plural Space",
+  "description": "Gestionnaire de système pour Pluralkit",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0d17",
+  "theme_color": "#1a1625",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text":  "text",
+      "url":   "url"
+    }
+  }
+}

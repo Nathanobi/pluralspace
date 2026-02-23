@@ -23,6 +23,8 @@ async function init() {
   renderImages();
   renderProfils();
   updateStats();
+  // Vérifier import Pinterest au démarrage
+  setTimeout(() => { checkPinterestHash(); checkShareTarget(); }, 100);
 }
 
 init();

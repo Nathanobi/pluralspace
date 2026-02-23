@@ -71,10 +71,11 @@ function renderImages() {
       <div class="image-card-body">
         <div class="image-card-name${p?'':' unlinked'}">${p?esc(p.name):'Sans prénom'}</div>
         ${imgTags.length>0 ? `<div class="image-card-tags">${tagsHtml}${imgTags.length>3?`<span style="font-size:11px;color:var(--text3);">+${imgTags.length-3}</span>`:''}</div>` : ''}
-        <div style="margin-top:5px;">
+        <div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px;">
           ${img.isCropped
             ? '<span class="badge badge-success" style="font-size:10px;">✂ Recadrée</span>'
             : '<span class="badge badge-warn" style="font-size:10px;">◌ Non recadrée</span>'}
+          ${img.pinterestUrl ? '<span class="badge" style="font-size:10px;background:rgba(230,0,35,0.15);color:#e60023;border-color:rgba(230,0,35,0.3);">📌 Pinterest</span>' : ''}
         </div>
       </div>
       <div class="image-card-actions">
@@ -336,6 +337,7 @@ function openImageDetail(img) {
     (p ? `<span class="badge badge-success">✓ Lié à ${esc(p.name)}</span>` : '<span class="badge badge-warn">◌ Sans prénom</span>')
     + (img.isCropped ? '<span class="badge badge-success" style="font-size:10px;">✂ Recadrée</span>' : '<span class="badge badge-warn" style="font-size:10px;">◌ Non recadrée</span>')
     + (img.hostedUrl ? '<span class="badge badge-success" style="font-size:10px;">✧ Hébergée</span>' : '')
+    + (img.pinterestUrl ? `<a href="${img.pinterestUrl}" target="_blank" rel="noopener" class="badge" style="font-size:10px;background:rgba(230,0,35,0.15);color:#e60023;border-color:rgba(230,0,35,0.3);text-decoration:none;">📌 Voir sur Pinterest</a>` : '')
     + imgTags.map(tagPillHtml).join('');
   // Lien hébergé
   const urlRow = document.getElementById('modal-image-detail-url-row');

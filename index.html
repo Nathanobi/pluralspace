@@ -366,6 +366,26 @@
     
     /* ACCUEIL — liens utiles */
     .accueil-section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 500; margin: 28px 0 12px; padding-left: 2px; }
+    /* Pinterest bookmarklet section */
+    .pinterest-section { margin-top: 28px; }
+    .bookmarklet-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px;
+      background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius);
+      margin-bottom: 10px; }
+    .bookmarklet-drag { display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; background: #e60023; color: #fff; border-radius: 20px;
+      font-size: 13px; font-weight: 600; cursor: grab; text-decoration: none;
+      white-space: nowrap; flex-shrink: 0; border: none; user-select: none;
+      transition: opacity .15s, transform .15s; }
+    .bookmarklet-drag:hover { opacity: .88; transform: scale(1.03); }
+    .bookmarklet-drag:active { cursor: grabbing; }
+    .bookmarklet-info { flex: 1; min-width: 0; }
+    .bookmarklet-name { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+    .bookmarklet-desc { font-size: 12px; color: var(--text3); line-height: 1.5; }
+    .pinterest-import-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #e60023; color: #fff; padding: 12px 24px; border-radius: 20px;
+      font-size: 14px; font-weight: 500; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,.4);
+      display: none; white-space: nowrap; }
+
     .useful-links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
     .useful-link-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); text-decoration: none; color: var(--text2); transition: border-color var(--transition), background var(--transition), transform var(--transition); }
     .useful-link-card:hover { border-color: var(--border); background: var(--bg3); color: var(--text); transform: translateY(-1px); }
@@ -494,6 +514,25 @@
           <div class="useful-link-arrow">↗</div>
         </a>
       </div>
+
+      <!-- Section Pinterest Bookmarklets -->
+      <div class="accueil-section-title" style="margin-top:28px;">📌 Pinterest — Import direct</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Glisse ces boutons dans ta barre de favoris, puis clique dessus depuis Pinterest pour importer des images.</div>
+      <div class="bookmarklet-card">
+        <a class="bookmarklet-drag" href="javascript:(function()%7B%20var%20og%3Ddocument.querySelector('meta%5Bproperty%3D%22og%3Aimage%22%5D')%3B%20var%20url%3Dog%3Fog.content%3Anull%3B%20if(!url)%7B%20var%20imgs%3DArray.from(document.querySelectorAll('img%5Bsrc*%3D%22pinimg.com%22%5D'))%3B%20imgs.sort(function(a%2Cb)%7Breturn(b.naturalWidth%7C%7C0)-(a.naturalWidth%7C%7C0)%3B%7D)%3B%20url%3Dimgs%5B0%5D%3Fimgs%5B0%5D.src%3Anull%3B%20%7D%20if(!url)%7Balert('PluralSpace%20%3A%20image%20Pinterest%20introuvable%20sur%20cette%20page.')%3Breturn%3B%7D%20%2F%2F%20Prendre%20la%20version%20originale%20(736x%20%E2%86%92%20originals)%20url%3Durl.replace(%2F%5C%2F%5Cd%2Bx%5C%2F%2F%2C'%2Foriginals%2F').replace(%2F%5C%2F%5Cd%2Bx%5Cd%2B%5C%2F%2F%2C'%2Foriginals%2F')%3B%20var%20pinUrl%3Dwindow.location.href%3B%20var%20dest%3D'https%3A%2F%2Fnathanobi.github.io%2Fpluralspace%2F'%2B'%23pinterest-import%3D'%2BencodeURIComponent(JSON.stringify(%7Bimg%3Aurl%2Cpin%3ApinUrl%7D))%3B%20window.open(dest%2C'_blank')%3B%20%7D)()%3B" onclick="return false;" draggable="true">📌 PluralSpace — Épingle</a>
+        <div class="bookmarklet-info">
+          <div class="bookmarklet-name">Importer une épingle</div>
+          <div class="bookmarklet-desc">Ouvre la page d'une épingle Pinterest, puis clique sur ce favori → l'image s'importe automatiquement.</div>
+        </div>
+      </div>
+      <div class="bookmarklet-card">
+        <a class="bookmarklet-drag" href="javascript:(function()%7B%20var%20imgs%3DArray.from(document.querySelectorAll('img%5Bsrc*%3D%22pinimg.com%22%5D'))%3B%20if(!imgs.length)%7Balert('PluralSpace%20%3A%20aucune%20%C3%A9pingle%20trouv%C3%A9e.%20Scrollez%20d%5C'abord%20jusqu%5C'en%20bas%20du%20tableau.')%3Breturn%3B%7D%20var%20urls%3D%5B%5D%3B%20var%20seen%3D%7B%7D%3B%20imgs.forEach(function(img)%7B%20var%20src%3Dimg.src%7C%7Cimg.dataset.src%7C%7C''%3B%20if(!src%7C%7C!src.includes('pinimg.com'))return%3B%20%2F%2F%20Upscale%20vers%20version%20HD%20src%3Dsrc.replace(%2F%5C%2F%5Cd%2Bx%5C%2F%2F%2C'%2F736x%2F').replace(%2F%5C%2F%5Cd%2Bx%5Cd%2B%5C%2F%2F%2C'%2F736x%2F')%3B%20%2F%2F%20D%C3%A9duplication%20par%20nom%20de%20fichier%20var%20key%3Dsrc.split('%2F').pop().split('%3F')%5B0%5D%3B%20if(!seen%5Bkey%5D)%7Bseen%5Bkey%5D%3D1%3Burls.push(src)%3B%7D%20%7D)%3B%20if(!urls.length)%7Balert('PluralSpace%20%3A%20aucune%20image%20extraite.')%3Breturn%3B%7D%20var%20boardUrl%3Dwindow.location.href%3B%20var%20dest%3D'https%3A%2F%2Fnathanobi.github.io%2Fpluralspace%2F'%2B'%23pinterest-import%3D'%2BencodeURIComponent(JSON.stringify(%7Bbatch%3Aurls%2Cboard%3AboardUrl%7D))%3B%20if(urls.length%3E50)%7B%20if(!confirm('PluralSpace%20%3A%20'%2Burls.length%2B'%20%C3%A9pingles%20trouv%C3%A9es.%20Importer%20les%2050%20premi%C3%A8res%20%3F'))return%3B%20urls%3Durls.slice(0%2C50)%3B%20dest%3D'https%3A%2F%2Fnathanobi.github.io%2Fpluralspace%2F'%2B'%23pinterest-import%3D'%2BencodeURIComponent(JSON.stringify(%7Bbatch%3Aurls%2Cboard%3AboardUrl%7D))%3B%20%7D%20window.open(dest%2C'_blank')%3B%20%7D)()%3B" onclick="return false;" draggable="true">📌 PluralSpace — Tableau</a>
+        <div class="bookmarklet-info">
+          <div class="bookmarklet-name">Importer un tableau entier</div>
+          <div class="bookmarklet-desc">Scrolle jusqu'en bas d'un tableau Pinterest pour charger toutes les épingles, puis clique sur ce favori → import en lot.</div>
+        </div>
+      </div>
+      <div id="pinterest-import-toast" class="pinterest-import-toast"></div>
     </section>
 
     <!-- PRENOMS -->
@@ -1219,6 +1258,7 @@
 </div>
 
 <script src="db.js" defer></script>
+<script src="pinterest.js" defer></script>
 <script src="utils.js" defer></script>
 <script src="tags.js" defer></script>
 <script src="prenoms.js" defer></script>
