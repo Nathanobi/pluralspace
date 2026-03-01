@@ -116,7 +116,7 @@
     .chip.selected { background: var(--bg4); border-color: var(--accent); color: var(--accent2); }
 
     /* MODAL */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; padding: 20px; -webkit-overflow-scrolling: touch; }
     .modal-overlay.open { display: flex; }
     .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; width: 100%; max-width: 480px; box-shadow: var(--shadow); animation: modalIn 0.2s ease; max-height: 92vh; overflow-y: auto; }
     @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1); } }
@@ -429,6 +429,8 @@
         bottom: 0; left: 0; right: 0;
         z-index: 200;
         transition: none;
+        /* iOS : éviter que la nav intercepte les taps sur le contenu au-dessus */
+        isolation: isolate;
       }
       nav.nav-collapsed { width: 100% !important; }
       .nav-logo { display: none; }
@@ -480,9 +482,12 @@
       /* ── MAIN ── */
       main {
         flex: 1;
+        /* Espace pour la nav fixe + home indicator iPhone */
         padding-bottom: calc(60px + env(safe-area-inset-bottom));
         overflow-y: auto;
         overflow-x: hidden;
+        /* iOS momentum scroll */
+        -webkit-overflow-scrolling: touch;
       }
 
       /* ── PAGES ── */
@@ -518,11 +523,45 @@
 
       /* ── TOOLBARS ── */
       .prenom-toolbar,
-      .proxy-toolbar { gap: 6px; margin-bottom: 12px; }
+      .proxy-toolbar {
+        gap: 6px;
+        margin-bottom: 12px;
+        flex-direction: column;   /* empiler verticalement */
+        align-items: stretch;
+      }
+      /* Ligne 1 : champ de recherche pleine largeur */
       .prenom-toolbar .input,
-      .proxy-toolbar .input { max-width: 100%; min-width: 0; flex: 1; }
+      .proxy-toolbar .input {
+        max-width: 100%;
+        min-width: 0;
+        width: 100%;
+        order: -1;   /* toujours en premier */
+      }
+      /* Ligne 2 : boutons de tri sur une rangée horizontale avec scroll */
+      .prenom-toolbar .sort-btn,
+      .prenom-toolbar .filter-btn,
+      .proxy-toolbar .sort-btn,
+      .proxy-toolbar .filter-btn,
+      .prenom-toolbar #filter-profil-incomplete {
+        flex-shrink: 0;
+      }
+      /* Wrapper les boutons de tri dans un flex-row scrollable */
+      .prenom-toolbar,
+      .proxy-toolbar {
+        flex-wrap: nowrap;
+      }
+      /* Conteneur boutons tri : flex-row wrappable */
+      .prenom-toolbar > :not(.input),
+      .proxy-toolbar > :not(.input) {
+        /* Restent sur la même ligne, wrappent si besoin */
+      }
       .toolbar-sep { display: none; }
-      .sort-btn { padding: 7px 10px; font-size: 11px; }
+      .sort-btn { padding: 7px 10px; font-size: 11px; flex-shrink: 0; }
+      /* Re-permettre le wrap pour les boutons seulement */
+      .prenom-toolbar { flex-wrap: wrap; }
+      .proxy-toolbar  { flex-wrap: wrap; }
+      .prenom-toolbar .input,
+      .proxy-toolbar .input { flex-basis: 100%; }   /* force retour à la ligne après le input */
       .tag-filter-row { margin-bottom: 12px; gap: 4px; }
 
       /* ── FILTRE ALPHABÉTIQUE ── */
@@ -552,12 +591,19 @@
       .proxy-row-actions { opacity: 1; }
 
       /* ── MODAUX → plein écran ── */
-      .modal-overlay { padding: 0; align-items: flex-end; }
+      .modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+        /* Laisser de la place pour la nav en bas */
+        padding-bottom: calc(60px + env(safe-area-inset-bottom));
+      }
       .modal {
         border-radius: var(--radius) var(--radius) 0 0 !important;
         max-width: 100% !important;
         width: 100%;
-        max-height: 92vh;
+        /* Hauteur max = viewport - nav du bas - safe area top */
+        max-height: calc(100vh - 60px - env(safe-area-inset-bottom) - env(safe-area-inset-top));
+        overflow-y: auto;
         animation: modalUp 0.25s cubic-bezier(.4,0,.2,1);
       }
       @keyframes modalUp {
@@ -568,22 +614,45 @@
       /* Modal proxy : empilement vertical */
       #modal-proxy .modal {
         flex-direction: column !important;
-        max-height: 92vh;
+        max-height: calc(100vh - 60px - env(safe-area-inset-bottom) - env(safe-area-inset-top));
         overflow: hidden;
       }
       #modal-proxy .modal > div:first-child {
         border-right: none !important;
         border-bottom: 1px solid var(--border2);
-        max-height: 55vh;
+        max-height: 55%;
         overflow-y: auto;
       }
       #modal-proxy .modal > div:last-child {
         overflow-y: auto;
-        max-height: 37vh;
+        flex: 1;
       }
 
       /* Modal crop */
       #modal-crop .modal { padding: 16px; }
+
+      /* ── iOS : désactiver backdrop-filter sur mobile (cause des bugs de tap) ── */
+      .modal-overlay { backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+      /* ── iOS : s'assurer que tous les inputs sont interactifs ── */
+      .modal input,
+      .modal textarea,
+      .modal select,
+      .modal button {
+        -webkit-appearance: none;
+        touch-action: manipulation;
+        position: relative;
+        z-index: 1;
+      }
+      /* Input type=text : empêcher le zoom sur iOS (déjà 16px mais renforcer) */
+      .modal input[type="text"],
+      .modal input[type="email"],
+      .modal input[type="password"],
+      .modal input[type="search"],
+      .modal textarea {
+        font-size: 16px !important;
+        transform: translateZ(0); /* force GPU layer, fix iOS tap */
+      }
 
       /* ── MODAL PROFIL DETAIL ── */
       .profil-detail-section { flex-direction: column; align-items: center; text-align: center; }

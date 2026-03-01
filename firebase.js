@@ -306,36 +306,27 @@ function fbUpdateUI() {
   }
 }
 
-// ── HOOK : intercepter dbPut et dbDelete pour sync automatique ──
-// On surcharge les fonctions globales après init Firebase
+// ── SYNC AUTOMATIQUE via événements custom ──
+// db.js émet des événements 'ps:dbput' et 'ps:dbdelete'
+// Firebase les écoute et sync vers Firestore
 
 function fbInstallHooks() {
-  const _dbPut    = window._dbPut_orig    || dbPut;
-  const _dbDelete = window._dbDelete_orig || dbDelete;
-
-  // Sauvegarder les originales
-  window._dbPut_orig    = _dbPut;
-  window._dbDelete_orig = _dbDelete;
-
-  // Surcharger dbPut
-  window.dbPut = async function(store, val) {
-    const result = await _dbPut(store, val);
+  // Écouter les événements émis par db.js
+  window.addEventListener('ps:dbput', e => {
+    const { store, val } = e.detail;
     if (fbUser && SYNC_COLLECTIONS.includes(store)) {
       fbPushDebounced(store, val);
     }
-    return result;
-  };
+  });
 
-  // Surcharger dbDelete
-  window.dbDelete = async function(store, key) {
-    const result = await _dbDelete(store, key);
+  window.addEventListener('ps:dbdelete', e => {
+    const { store, key } = e.detail;
     if (fbUser && SYNC_COLLECTIONS.includes(store)) {
       fbDeleteDoc(store, key);
     }
-    return result;
-  };
+  });
 
-  console.log('[Firebase] Hooks installés ✓');
+  console.log('[Firebase] Hooks événements installés ✓');
 }
 
 // ── DÉMARRAGE ──

@@ -24,6 +24,20 @@ function openDB() {
 
 const dbGet    = (store, key) => new Promise((res,rej) => { const r=db.transaction(store,'readonly').objectStore(store).get(key); r.onsuccess=()=>res(r.result); r.onerror=rej; });
 const dbGetAll = store       => new Promise((res,rej) => { const r=db.transaction(store,'readonly').objectStore(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=rej; });
-const dbPut    = (store,val) => new Promise((res,rej) => { const r=db.transaction(store,'readwrite').objectStore(store).put(val); r.onsuccess=()=>res(r.result); r.onerror=rej; });
-const dbDelete = (store,key) => new Promise((res,rej) => { const r=db.transaction(store,'readwrite').objectStore(store).delete(key); r.onsuccess=()=>res(); r.onerror=rej; });
+const dbPut    = (store,val) => new Promise((res,rej) => {
+  const r=db.transaction(store,'readwrite').objectStore(store).put(val);
+  r.onsuccess=()=>{
+    res(r.result);
+    window.dispatchEvent(new CustomEvent('ps:dbput', { detail: { store, val } }));
+  };
+  r.onerror=rej;
+});
+const dbDelete = (store,key) => new Promise((res,rej) => {
+  const r=db.transaction(store,'readwrite').objectStore(store).delete(key);
+  r.onsuccess=()=>{
+    res();
+    window.dispatchEvent(new CustomEvent('ps:dbdelete', { detail: { store, key } }));
+  };
+  r.onerror=rej;
+});
 const dbClear  = store       => new Promise((res,rej) => { const r=db.transaction(store,'readwrite').objectStore(store).clear(); r.onsuccess=()=>res(); r.onerror=rej; });
