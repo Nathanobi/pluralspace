@@ -118,8 +118,18 @@ async function fbPullAll() {
       if      (col === 'prenoms') prenoms = items;
       else if (col === 'tags')    tags    = items;
       else if (col === 'proxys')  proxys  = items;
-      else if (col === 'images')  images  = items;
       else if (col === 'profils') profils = items;
+      else if (col === 'images') {
+        // Fusionner avec images locales pour préserver les dataUrl (non stockés dans Firestore)
+        for (const remoteImg of items) {
+          const localImg = images.find(x => x.id === remoteImg.id);
+          if (localImg) {
+            remoteImg.dataUrl         = localImg.dataUrl         || null;
+            remoteImg.originalDataUrl = localImg.originalDataUrl || null;
+          }
+        }
+        images = items;
+      }
     }
     // Rafraîchir tout l'affichage
     renderPrenoms(); renderProxys(); renderImages();
@@ -214,6 +224,11 @@ function fbMergeInMemory(col, item, remove) {
   if (remove) {
     if (idx >= 0) arr.splice(idx, 1);
   } else {
+    // Pour les images : préserver les dataUrl locaux non stockés dans Firestore
+    if (col === 'images' && idx >= 0) {
+      item.dataUrl         = arr[idx].dataUrl         || null;
+      item.originalDataUrl = arr[idx].originalDataUrl || null;
+    }
     if (idx >= 0) arr[idx] = item;
     else arr.push(item);
   }
