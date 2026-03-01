@@ -416,7 +416,7 @@
       html, body { overflow: hidden; }
       #app { flex-direction: column-reverse; }
 
-      /* ── NAV → barre du bas ── */
+      /* ── NAV → barre fixe en bas ── */
       nav {
         width: 100% !important;
         height: calc(60px + env(safe-area-inset-bottom));
@@ -429,7 +429,6 @@
         bottom: 0; left: 0; right: 0;
         z-index: 200;
         transition: none;
-        /* iOS : éviter que la nav intercepte les taps sur le contenu au-dessus */
         isolation: isolate;
       }
       nav.nav-collapsed { width: 100% !important; }
@@ -454,6 +453,7 @@
         font-size: 10px;
         height: 100%;
         white-space: nowrap;
+        position: relative;
       }
       .nav-link .icon { font-size: 20px; width: auto; }
       .nav-link .label { display: block !important; font-size: 9px; color: var(--text3); }
@@ -471,22 +471,19 @@
       .nav-footer {
         border-top: none;
         border-left: 1px solid var(--border2);
-        padding: 0;
-        margin: 0;
+        padding: 0; margin: 0;
         display: flex;
         flex-direction: row;
       }
       .nav-footer .nav-link { border-radius: 0; }
       #btn-nav-toggle { display: none; }
 
-      /* ── MAIN ── */
+      /* ── MAIN : espace sous la nav fixe ── */
       main {
         flex: 1;
-        /* Espace pour la nav fixe + home indicator iPhone */
         padding-bottom: calc(60px + env(safe-area-inset-bottom));
         overflow-y: auto;
         overflow-x: hidden;
-        /* iOS momentum scroll */
         -webkit-overflow-scrolling: touch;
       }
 
@@ -517,56 +514,34 @@
       .stat-card { padding: 14px; }
       .stat-value { font-size: 30px; }
 
-      /* ── INPUTS (anti-zoom iOS) ── */
+      /* ── INPUTS anti-zoom iOS (≥16px évite le zoom auto) ── */
       .input, input, select, textarea { font-size: 16px !important; }
       .input::placeholder { font-size: 14px; }
 
-      /* ── TOOLBARS ── */
+      /* ── TOOLBARS : recherche au-dessus, boutons en dessous ── */
       .prenom-toolbar,
       .proxy-toolbar {
+        display: flex;
+        flex-wrap: wrap;        /* les éléments wrappent */
         gap: 6px;
         margin-bottom: 12px;
-        flex-direction: column;   /* empiler verticalement */
-        align-items: stretch;
+        align-items: center;
       }
-      /* Ligne 1 : champ de recherche pleine largeur */
+      /* Le champ recherche prend toute la largeur → force un retour à la ligne */
       .prenom-toolbar .input,
       .proxy-toolbar .input {
-        max-width: 100%;
-        min-width: 0;
+        flex: 0 0 100%;         /* 100% de largeur, ne grandit/rétrécit pas */
         width: 100%;
-        order: -1;   /* toujours en premier */
+        order: -1;              /* toujours affiché en premier */
       }
-      /* Ligne 2 : boutons de tri sur une rangée horizontale avec scroll */
-      .prenom-toolbar .sort-btn,
-      .prenom-toolbar .filter-btn,
-      .proxy-toolbar .sort-btn,
-      .proxy-toolbar .filter-btn,
-      .prenom-toolbar #filter-profil-incomplete {
-        flex-shrink: 0;
-      }
-      /* Wrapper les boutons de tri dans un flex-row scrollable */
-      .prenom-toolbar,
-      .proxy-toolbar {
-        flex-wrap: nowrap;
-      }
-      /* Conteneur boutons tri : flex-row wrappable */
-      .prenom-toolbar > :not(.input),
-      .proxy-toolbar > :not(.input) {
-        /* Restent sur la même ligne, wrappent si besoin */
-      }
+      /* Les boutons de tri/filtre restent sur la ligne suivante, compacts */
       .toolbar-sep { display: none; }
       .sort-btn { padding: 7px 10px; font-size: 11px; flex-shrink: 0; }
-      /* Re-permettre le wrap pour les boutons seulement */
-      .prenom-toolbar { flex-wrap: wrap; }
-      .proxy-toolbar  { flex-wrap: wrap; }
-      .prenom-toolbar .input,
-      .proxy-toolbar .input { flex-basis: 100%; }   /* force retour à la ligne après le input */
-      .tag-filter-row { margin-bottom: 12px; gap: 4px; }
 
       /* ── FILTRE ALPHABÉTIQUE ── */
       .alpha-filter { gap: 3px; }
       .alpha-btn { width: 26px; height: 26px; font-size: 11px; }
+      .tag-filter-row { margin-bottom: 12px; gap: 4px; }
 
       /* ── TABLE PROXY → CARDS ── */
       .proxy-table-wrap { border-radius: var(--radius-sm); }
@@ -579,31 +554,29 @@
         gap: 4px;
         position: relative;
       }
-      .proxy-table td {
-        padding: 0;
-        border: none;
-        font-size: 13px;
-      }
+      .proxy-table td { padding: 0; border: none; font-size: 13px; }
       .proxy-name-cell  { font-size: 17px; padding-right: 60px; }
       .proxy-value-cell { font-size: 13px; }
       .proxy-preview-cell { margin-top: 4px; }
       .proxy-actions-cell { position: absolute; top: 10px; right: 10px; }
       .proxy-row-actions { opacity: 1; }
 
-      /* ── MODAUX → plein écran ── */
+      /* ── MODAUX : s'ouvrent par le bas, au-dessus de la nav ── */
       .modal-overlay {
         padding: 0;
-        align-items: flex-end;
-        /* Laisser de la place pour la nav en bas */
         padding-bottom: calc(60px + env(safe-area-inset-bottom));
+        align-items: flex-end;
+        /* iOS : backdrop-filter cause des bugs de tap */
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
       }
       .modal {
         border-radius: var(--radius) var(--radius) 0 0 !important;
         max-width: 100% !important;
         width: 100%;
-        /* Hauteur max = viewport - nav du bas - safe area top */
-        max-height: calc(100vh - 60px - env(safe-area-inset-bottom) - env(safe-area-inset-top));
+        max-height: calc(100vh - 60px - env(safe-area-inset-bottom));
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         animation: modalUp 0.25s cubic-bezier(.4,0,.2,1);
       }
       @keyframes modalUp {
@@ -614,7 +587,7 @@
       /* Modal proxy : empilement vertical */
       #modal-proxy .modal {
         flex-direction: column !important;
-        max-height: calc(100vh - 60px - env(safe-area-inset-bottom) - env(safe-area-inset-top));
+        max-height: calc(100vh - 60px - env(safe-area-inset-bottom));
         overflow: hidden;
       }
       #modal-proxy .modal > div:first-child {
@@ -623,42 +596,32 @@
         max-height: 55%;
         overflow-y: auto;
       }
-      #modal-proxy .modal > div:last-child {
-        overflow-y: auto;
-        flex: 1;
-      }
+      #modal-proxy .modal > div:last-child { overflow-y: auto; flex: 1; }
 
       /* Modal crop */
       #modal-crop .modal { padding: 16px; }
 
-      /* ── iOS : désactiver backdrop-filter sur mobile (cause des bugs de tap) ── */
-      .modal-overlay { backdrop-filter: none; -webkit-backdrop-filter: none; }
-
-      /* ── iOS : s'assurer que tous les inputs sont interactifs ── */
-      .modal input,
-      .modal textarea,
-      .modal select,
-      .modal button {
+      /* iOS : inputs dans les modaux toujours interactifs */
+      .modal input, .modal textarea, .modal select, .modal button {
         -webkit-appearance: none;
         touch-action: manipulation;
         position: relative;
         z-index: 1;
       }
-      /* Input type=text : empêcher le zoom sur iOS (déjà 16px mais renforcer) */
       .modal input[type="text"],
       .modal input[type="email"],
       .modal input[type="password"],
       .modal input[type="search"],
       .modal textarea {
         font-size: 16px !important;
-        transform: translateZ(0); /* force GPU layer, fix iOS tap */
+        transform: translateZ(0);
       }
 
       /* ── MODAL PROFIL DETAIL ── */
       .profil-detail-section { flex-direction: column; align-items: center; text-align: center; }
       .profil-detail-avatar { width: 80px; height: 80px; }
 
-      /* ── TOAST ── */
+      /* ── TOAST : au-dessus de la nav ── */
       #toast-container {
         bottom: calc(70px + env(safe-area-inset-bottom));
         right: 12px; left: 12px;
