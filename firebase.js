@@ -150,9 +150,11 @@ async function fbPullAll() {
 async function fbPushDoc(collection, item) {
   if (!fbUser || !fbDb || !item?.id) return;
   try {
-    await fbColRef(collection).doc(item.id).set(item);
+    const doc = fbSanitize(collection, item);
+    await fbColRef(collection).doc(doc.id).set(doc);
   } catch(e) {
     console.error(`[Firebase] Push ${collection}/${item.id} :`, e);
+    fbSetSyncStatus('error');
   }
 }
 
