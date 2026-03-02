@@ -136,6 +136,7 @@ async function fbPullAll() {
     renderTagFilters(); renderImgTagFilters();
     renderProxyTagFilters(); renderProfilTagFilters();
     renderNoProxyBanner(); updateStats();
+    fbSetLastSync(Date.now());
     fbSetSyncStatus('ok');
     console.log('[Firebase] Pull terminé ✓');
   } catch(e) {
@@ -252,14 +253,28 @@ function fbRefreshViews() {
   renderNoProxyBanner(); updateStats();
 }
 
-// Push initial : envoyer toutes les données locales vers Firestore
-// Pour les images sans hostedUrl, upload automatique sur imgbb avant le push
+// ── Timestamp de dernière sync (par utilisatrice) ──
+function fbGetLastSync() {
+  if (!fbUser) return 0;
+  return parseInt(localStorage.getItem(`ps-last-sync-${fbUser.uid}`) || '0', 10);
+}
+function fbSetLastSync(ts) {
+  if (!fbUser) return;
+  localStorage.setItem(`ps-last-sync-${fbUser.uid}`, String(ts));
+}
+
+// Push incrémental : envoyer uniquement les documents modifiés depuis la dernière sync
+// + upload imgbb automatique pour les images sans hostedUrl
 async function fbPushAll() {
   if (!fbUser || !fbDb) return;
   try {
     fbSetSyncStatus('syncing');
+    const lastSync  = fbGetLastSync();
+    const syncStart = Date.now();
+    const isFirst   = lastSync === 0;
+    let totalPushed = 0;
 
-    // ── Étape 1 : uploader sur imgbb les images qui n'ont pas encore de hostedUrl ──
+    // ── Étape 1 : uploader sur imgbb les images sans hostedUrl ──
     const imgbbKey = localStorage.getItem('ps-imgbb-key') || '';
     if (imgbbKey) {
       const allImages = await dbGetAll('images');
@@ -272,36 +287,34 @@ async function fbPushAll() {
             const base64 = img.dataUrl.split(',')[1];
             const fd = new FormData();
             fd.append('image', base64);
-            const resp = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
-              method: 'POST', body: fd
-            });
+            const resp = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method:'POST', body:fd });
             const json = await resp.json();
             if (json.success) {
               img.hostedUrl = json.data.url;
-              await dbPut('images', img); // met à jour IndexedDB + déclenche sync auto
+              // Sauvegarder sans déclencher la sync auto (pour éviter boucle)
+              await new Promise((res,rej) => {
+                const r = db.transaction('images','readwrite').objectStore('images').put(img);
+                r.onsuccess = () => res(); r.onerror = rej;
+              });
               uploaded++;
-            } else {
-              console.warn(`[Firebase] imgbb échec pour ${img.id}:`, json.error?.message);
             }
-          } catch(uploadErr) {
-            console.warn(`[Firebase] imgbb erreur pour ${img.id}:`, uploadErr.message);
-          }
-          // Pause pour ne pas spammer imgbb
+          } catch(e) { console.warn('[Firebase] imgbb:', e.message); }
           await new Promise(r => setTimeout(r, 200));
         }
         console.log(`[Firebase] imgbb : ${uploaded}/${toUpload.length} uploadées`);
       }
-    } else {
-      toast("Pas de cle imgbb - images sans photo. Ajoutez une cle dans Config.", "error");
     }
 
-    // ── Étape 2 : push Firestore pour toutes les collections ──
-    const counts = {};
+    // ── Étape 2 : push Firestore — uniquement les docs modifiés depuis lastSync ──
     const BATCH_SIZE = 50;
     const PAUSE_MS   = 400;
     for (const col of SYNC_COLLECTIONS) {
-      const items = await dbGetAll(col);
-      counts[col] = items.length;
+      const allItems = await dbGetAll(col);
+      // Première sync : tout envoyer. Sinon : uniquement updatedAt > lastSync
+      const items = isFirst
+        ? allItems
+        : allItems.filter(item => (item.updatedAt || item.createdAt || 0) > lastSync);
+      if (items.length === 0) continue;
       let pushed = 0;
       for (let i = 0; i < items.length; i += BATCH_SIZE) {
         const slice = items.slice(i, i + BATCH_SIZE);
@@ -314,32 +327,35 @@ async function fbPushAll() {
           await batch.commit();
           pushed += slice.length;
         } catch(batchErr) {
-          console.warn(`[Firebase] Batch ${col} i=${i} échoué, retry doc par doc`);
           for (const item of slice) {
             try {
               const doc = fbSanitize(col, item);
               await fbColRef(col).doc(doc.id).set(doc);
               pushed++;
-            } catch(e2) {
-              console.error(`[Firebase] ${col}/${item.id} ignoré :`, e2.message);
-            }
+            } catch(e2) { console.error(`[Firebase] ${col}/${item.id}:`, e2.message); }
             await new Promise(r => setTimeout(r, 80));
           }
         }
-        if (i + BATCH_SIZE < items.length) {
-          await new Promise(r => setTimeout(r, PAUSE_MS));
-        }
+        if (i + BATCH_SIZE < items.length) await new Promise(r => setTimeout(r, PAUSE_MS));
       }
-      console.log(`[Firebase] ${col} : ${pushed}/${items.length}`);
+      totalPushed += pushed;
+      console.log(`[Firebase] ${col} : ${pushed}/${items.length} modifiés envoyés`);
     }
+
+    // Sauvegarder le timestamp de cette sync réussie
+    fbSetLastSync(syncStart);
     fbSetSyncStatus('ok');
-    const total = Object.values(counts).reduce((a,b) => a+b, 0);
-    toast(`${total} éléments synchronisés ✓`, 'success');
-    console.log('[Firebase] Push all terminé :', counts);
+    const msg = isFirst
+      ? `Première sync : ${totalPushed} éléments envoyés ✓`
+      : totalPushed > 0
+        ? `${totalPushed} modification(s) synchronisée(s) ✓`
+        : 'Tout est déjà à jour ✓';
+    toast(msg, 'success');
+    console.log('[Firebase] Push terminé, lastSync mis à jour');
   } catch(e) {
     fbSetSyncStatus('error');
-    console.error('[Firebase] Push all erreur :', e);
-    toast('Erreur lors de l\'envoi vers le cloud.', 'error');
+    console.error('[Firebase] Push erreur :', e);
+    toast('Erreur de synchronisation.', 'error');
   }
 }
 

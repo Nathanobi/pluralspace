@@ -25,6 +25,10 @@ function openDB() {
 const dbGet    = (store, key) => new Promise((res,rej) => { const r=db.transaction(store,'readonly').objectStore(store).get(key); r.onsuccess=()=>res(r.result); r.onerror=rej; });
 const dbGetAll = store       => new Promise((res,rej) => { const r=db.transaction(store,'readonly').objectStore(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=rej; });
 const dbPut    = (store,val) => new Promise((res,rej) => {
+  // Ajouter updatedAt automatiquement (sauf settings)
+  if (store !== 'settings' && val && typeof val === 'object') {
+    val.updatedAt = Date.now();
+  }
   const r=db.transaction(store,'readwrite').objectStore(store).put(val);
   r.onsuccess=()=>{
     res(r.result);
