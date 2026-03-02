@@ -251,21 +251,46 @@ async function fbPushAll() {
   try {
     fbSetSyncStatus('syncing');
     const counts = {};
+    const BATCH_SIZE = 50;       // Petits lots pour ne pas saturer Firestore
+    const PAUSE_MS   = 400;      // Pause entre chaque lot
     for (const col of SYNC_COLLECTIONS) {
       const items = await dbGetAll(col);
       counts[col] = items.length;
-      // Batch write par lot de 500 (limite Firestore)
-      for (let i = 0; i < items.length; i += 400) {
+      let pushed = 0;
+      for (let i = 0; i < items.length; i += BATCH_SIZE) {
+        const slice = items.slice(i, i + BATCH_SIZE);
         const batch = fbDb.batch();
-        items.slice(i, i + 400).forEach(item => {
-          batch.set(fbColRef(col).doc(item.id), item);
+        slice.forEach(item => {
+          const doc = fbSanitize(col, item);
+          batch.set(fbColRef(col).doc(doc.id), doc);
         });
-        await batch.commit();
+        try {
+          await batch.commit();
+          pushed += slice.length;
+        } catch(batchErr) {
+          // Batch échoué → doc par doc pour ne rien perdre
+          console.warn(`[Firebase] Batch ${col} i=${i} échoué, retry doc par doc`);
+          for (const item of slice) {
+            try {
+              const doc = fbSanitize(col, item);
+              await fbColRef(col).doc(doc.id).set(doc);
+              pushed++;
+            } catch(e2) {
+              console.error(`[Firebase] ${col}/${item.id} ignoré :`, e2.message);
+            }
+            await new Promise(r => setTimeout(r, 80));
+          }
+        }
+        // Pause entre les lots pour ne pas saturer la write queue
+        if (i + BATCH_SIZE < items.length) {
+          await new Promise(r => setTimeout(r, PAUSE_MS));
+        }
       }
+      console.log(`[Firebase] ${col} : ${pushed}/${items.length}`);
     }
     fbSetSyncStatus('ok');
     const total = Object.values(counts).reduce((a,b) => a+b, 0);
-    toast(`${total} éléments synchronisés vers le cloud ✓`, 'success');
+    toast(`${total} éléments synchronisés ✓`, 'success');
     console.log('[Firebase] Push all terminé :', counts);
   } catch(e) {
     fbSetSyncStatus('error');
