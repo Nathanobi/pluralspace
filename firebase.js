@@ -34,7 +34,6 @@ function fbInit() {
     fbAuth = firebase.auth();
     fbDb   = firebase.firestore();
     // Activer la persistence offline (fonctionne hors ligne)
-    fbDb.enablePersistence({ synchronizeTabs: true }).catch(() => {});
     console.log('[Firebase] Initialisé ✓');
     fbWatchAuthState();
   } catch(e) {
