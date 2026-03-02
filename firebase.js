@@ -253,14 +253,52 @@ function fbRefreshViews() {
 }
 
 // Push initial : envoyer toutes les données locales vers Firestore
-// (utile à la première connexion pour migrer les données existantes)
+// Pour les images sans hostedUrl, upload automatique sur imgbb avant le push
 async function fbPushAll() {
   if (!fbUser || !fbDb) return;
   try {
     fbSetSyncStatus('syncing');
+
+    // ── Étape 1 : uploader sur imgbb les images qui n'ont pas encore de hostedUrl ──
+    const imgbbKey = localStorage.getItem('ps-imgbb-key') || '';
+    if (imgbbKey) {
+      const allImages = await dbGetAll('images');
+      const toUpload  = allImages.filter(img => img.dataUrl && !img.hostedUrl);
+      if (toUpload.length > 0) {
+        toast(`Upload de ${toUpload.length} image(s) sur imgbb…`, 'info');
+        let uploaded = 0;
+        for (const img of toUpload) {
+          try {
+            const base64 = img.dataUrl.split(',')[1];
+            const fd = new FormData();
+            fd.append('image', base64);
+            const resp = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
+              method: 'POST', body: fd
+            });
+            const json = await resp.json();
+            if (json.success) {
+              img.hostedUrl = json.data.url;
+              await dbPut('images', img); // met à jour IndexedDB + déclenche sync auto
+              uploaded++;
+            } else {
+              console.warn(`[Firebase] imgbb échec pour ${img.id}:`, json.error?.message);
+            }
+          } catch(uploadErr) {
+            console.warn(`[Firebase] imgbb erreur pour ${img.id}:`, uploadErr.message);
+          }
+          // Pause pour ne pas spammer imgbb
+          await new Promise(r => setTimeout(r, 200));
+        }
+        console.log(`[Firebase] imgbb : ${uploaded}/${toUpload.length} uploadées`);
+      }
+    } else {
+      toast("Pas de cle imgbb - images sans photo. Ajoutez une cle dans Config.", "error");
+    }
+
+    // ── Étape 2 : push Firestore pour toutes les collections ──
     const counts = {};
-    const BATCH_SIZE = 50;       // Petits lots pour ne pas saturer Firestore
-    const PAUSE_MS   = 400;      // Pause entre chaque lot
+    const BATCH_SIZE = 50;
+    const PAUSE_MS   = 400;
     for (const col of SYNC_COLLECTIONS) {
       const items = await dbGetAll(col);
       counts[col] = items.length;
@@ -276,7 +314,6 @@ async function fbPushAll() {
           await batch.commit();
           pushed += slice.length;
         } catch(batchErr) {
-          // Batch échoué → doc par doc pour ne rien perdre
           console.warn(`[Firebase] Batch ${col} i=${i} échoué, retry doc par doc`);
           for (const item of slice) {
             try {
@@ -289,7 +326,6 @@ async function fbPushAll() {
             await new Promise(r => setTimeout(r, 80));
           }
         }
-        // Pause entre les lots pour ne pas saturer la write queue
         if (i + BATCH_SIZE < items.length) {
           await new Promise(r => setTimeout(r, PAUSE_MS));
         }
