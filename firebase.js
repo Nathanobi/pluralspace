@@ -146,6 +146,15 @@ async function fbPullAll() {
   }
 }
 
+// Nettoyer un item avant envoi Firestore (retirer les dataUrl trop lourds, limite 1MB)
+function fbSanitize(collection, item) {
+  if (collection !== 'images') return item;
+  const doc = Object.assign({}, item);
+  delete doc.dataUrl;
+  delete doc.originalDataUrl;
+  return doc;
+}
+
 // Push un seul document vers Firestore
 async function fbPushDoc(collection, item) {
   if (!fbUser || !fbDb || !item?.id) return;
