@@ -438,23 +438,28 @@ let cropCallback = null;
 
 function openCropModal(dataUrl, cb) {
   cropCallback = cb;
-  const canvas    = document.getElementById('crop-canvas');
-  const container = document.getElementById('crop-container');
-  const size      = Math.min(container.clientWidth||440, 440);
-  canvas.width=size; canvas.height=size;
-  canvas.style.width=size+'px'; canvas.style.height=size+'px';
-  cropImg = new Image();
-  cropImg.onload = () => {
-    const sx=size/cropImg.width, sy=size/cropImg.height;
-    cropState.scale  = Math.max(sx,sy)*100;
-    cropState.offX   = (size - cropImg.width*cropState.scale/100)/2;
-    cropState.offY   = (size - cropImg.height*cropState.scale/100)/2;
-    document.getElementById('crop-zoom').value = Math.round(cropState.scale);
-    document.getElementById('crop-zoom-label').textContent = Math.round(cropState.scale)+'%';
-    drawCrop();
-  };
-  cropImg.src = dataUrl;
+  // Ouvrir le modal AVANT de mesurer le container (sinon clientWidth = 0 sur mobile)
   document.getElementById('modal-crop').classList.add('open');
+  requestAnimationFrame(() => {
+    const canvas    = document.getElementById('crop-canvas');
+    const container = document.getElementById('crop-container');
+    // Laisser une marge pour le padding du modal sur mobile
+    const maxSize = Math.min(window.innerWidth - 32, window.innerHeight - 200, 440);
+    const size    = Math.min(container.clientWidth || maxSize, maxSize);
+    canvas.width=size; canvas.height=size;
+    canvas.style.width=size+'px'; canvas.style.height=size+'px';
+    cropImg = new Image();
+    cropImg.onload = () => {
+      const sx=size/cropImg.width, sy=size/cropImg.height;
+      cropState.scale  = Math.max(sx,sy)*100;
+      cropState.offX   = (size - cropImg.width*cropState.scale/100)/2;
+      cropState.offY   = (size - cropImg.height*cropState.scale/100)/2;
+      document.getElementById('crop-zoom').value = Math.round(cropState.scale);
+      document.getElementById('crop-zoom-label').textContent = Math.round(cropState.scale)+'%';
+      drawCrop();
+    };
+    cropImg.src = dataUrl;
+  });
 }
 
 function drawCrop() {

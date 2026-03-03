@@ -722,62 +722,35 @@
       </div>
       <script>
       (function() {
-        const isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isAndroid = /Android/.test(navigator.userAgent);
-        const links = [
-          {
-            icon: '⟡', name: 'PluralKit', desc: 'Gérer votre système sur Discord',
-            web: 'https://pluralkit.me',
-            android: 'intent://pluralkit.me#Intent;scheme=https;package=com.discord;end',
-            ios: 'https://pluralkit.me'
-          },
-          {
-            icon: '◉', name: 'PluralKit Dashboard', desc: 'Interface web officielle PluralKit',
-            web: 'https://dash.pluralkit.me',
-            ios: 'https://dash.pluralkit.me',
-            android: 'https://dash.pluralkit.me'
-          },
-          {
-            icon: '✦', name: 'Pinterest', desc: 'Trouver des images et références visuelles',
-            web: 'https://www.pinterest.fr',
-            ios: 'pinterest://',
-            iosFallback: 'https://www.pinterest.fr',
-            android: 'intent://pinterest.com#Intent;scheme=https;package=com.pinterest;end'
-          },
-          {
-            icon: '✧', name: 'imgbb', desc: 'Héberger une image pour obtenir une URL',
-            web: 'https://imgbb.com',
-            ios: 'https://imgbb.com',
-            android: 'https://imgbb.com'
-          },
-          {
-            icon: '◈', name: 'Discord', desc: 'Essayer vos proxys en conditions réelles',
-            web: 'https://discord.com',
-            ios: 'discord://',
-            iosFallback: 'https://apps.apple.com/app/discord/id985746746',
-            android: 'intent://discord.com#Intent;scheme=https;package=com.discord;end'
-          }
+        var isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        var isAndroid = /Android/.test(navigator.userAgent);
+        var links = [
+          { icon: '⟡', name: 'PluralKit',           desc: 'Gérer votre système sur Discord',           web: 'https://pluralkit.me',       ios: 'https://pluralkit.me',       android: 'https://pluralkit.me' },
+          { icon: '◉', name: 'PluralKit Dashboard',  desc: 'Interface web officielle PluralKit',        web: 'https://dash.pluralkit.me',  ios: 'https://dash.pluralkit.me',  android: 'https://dash.pluralkit.me' },
+          { icon: '✦', name: 'Pinterest',             desc: 'Trouver des images et références visuelles',web: 'https://www.pinterest.fr',   ios: 'pinterest://',               iosFallback: 'https://www.pinterest.fr', android: 'intent://pinterest.com#Intent;scheme=https;package=com.pinterest;end' },
+          { icon: '✧', name: 'imgbb',                 desc: 'Héberger une image pour obtenir une URL',   web: 'https://imgbb.com',          ios: 'https://imgbb.com',          android: 'https://imgbb.com' },
+          { icon: '◈', name: 'Discord',               desc: 'Essayer vos proxys en conditions réelles',  web: 'https://discord.com',        ios: 'discord://',                 iosFallback: 'https://apps.apple.com/app/discord/id985746746', android: 'intent://discord.com#Intent;scheme=https;package=com.discord;end' }
         ];
-        const grid = document.getElementById('useful-links-grid');
-        grid.innerHTML = links.map(l => {
-          let href = l.web;
-          if (isIOS && l.ios)     href = l.ios;
+        var grid = document.getElementById('useful-links-grid');
+        grid.innerHTML = links.map(function(l) {
+          var href = l.web;
+          if (isIOS && l.ios)         href = l.ios;
           if (isAndroid && l.android) href = l.android;
-          const hasAppLink = (isIOS && l.ios && l.ios !== l.web) || (isAndroid && l.android && !l.android.startsWith('https'));
-          const badge = hasAppLink ? '<span style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--accent2);border:1px solid rgba(167,139,250,0.3);border-radius:4px;padding:1px 5px;margin-left:6px;">App</span>' : '';
-          return \`<a class="useful-link-card" href="\${href}" \${l.iosFallback && isIOS ? 'data-fallback="'+l.iosFallback+'"' : ''} target="_blank" rel="noopener">
-            <div class="useful-link-icon">\${l.icon}</div>
-            <div class="useful-link-body">
-              <div class="useful-link-name">\${l.name}\${badge}</div>
-              <div class="useful-link-desc">\${l.desc}</div>
-            </div>
-            <div class="useful-link-arrow">↗</div>
-          </a>\`;
+          var hasApp = (isIOS && l.ios && l.ios !== l.web) || (isAndroid && l.android && l.android.indexOf('intent://') === 0);
+          var badge  = hasApp ? '<span style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--accent2);border:1px solid rgba(167,139,250,0.3);border-radius:4px;padding:1px 5px;margin-left:6px;">App</span>' : '';
+          var fb     = (l.iosFallback && isIOS) ? ' data-fallback="' + l.iosFallback + '"' : '';
+          return '<a class="useful-link-card" href="' + href + '"' + fb + ' target="_blank" rel="noopener">'
+               + '<div class="useful-link-icon">' + l.icon + '</div>'
+               + '<div class="useful-link-body">'
+               + '<div class="useful-link-name">' + l.name + badge + '</div>'
+               + '<div class="useful-link-desc">' + l.desc + '</div>'
+               + '</div>'
+               + '<div class="useful-link-arrow">↗</div>'
+               + '</a>';
         }).join('');
-        // Fallback pour les liens appli iOS qui échouent
-        grid.querySelectorAll('[data-fallback]').forEach(a => {
-          a.addEventListener('click', () => {
-            setTimeout(() => { window.open(a.dataset.fallback, '_blank'); }, 1500);
+        grid.querySelectorAll('[data-fallback]').forEach(function(a) {
+          a.addEventListener('click', function() {
+            setTimeout(function() { window.open(a.dataset.fallback, '_blank'); }, 1500);
           });
         });
       })();
