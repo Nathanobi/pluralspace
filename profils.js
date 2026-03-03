@@ -49,8 +49,8 @@ function renderProfils() {
     const pxList= proxys.filter(x=>x.prenomId===pr.prenomId);
     const name  = p ? p.name : (pr.name||'?');
     const colorBar = pr.color ? `<div class="profil-color-bar" style="background:${esc(pr.color)};"></div>` : '';
-    const avatarHtml = (img&&img.dataUrl)
-      ? `<div class="profil-card-avatar"><img src="${img.dataUrl}" /></div>`
+    const avatarHtml = (img&&(img.dataUrl||img.hostedUrl))
+      ? `<div class="profil-card-avatar"><img src="${img.dataUrl||img.hostedUrl}" /></div>`
       : `<div class="profil-card-avatar no-img">✦</div>`;
     const proxysHtml = pxList.map(px=>`<span class="proxy-mini-pill" style="font-size:10px;">${esc((px.prefix||'')+name+(px.suffix||''))}</span>`).join(' ');
     const pTags = (prenoms.find(x=>x.id===pr.prenomId)?.tags||[])
@@ -194,8 +194,8 @@ function refreshProfilLinkedInfo(prenom) {
   const pxList = proxys.filter(x=>x.prenomId===prenom.id);
 
   // ── Image ──
-  if (img && img.dataUrl) {
-    imgContent.innerHTML = `<img class="profil-linked-thumb" src="${img.dataUrl}" />
+  if (img && (img.dataUrl||img.hostedUrl)) {
+    imgContent.innerHTML = `<img class="profil-linked-thumb" src="${img.dataUrl||img.hostedUrl}" />
       ${img.isCropped
         ? '<span class="badge badge-success" style="font-size:10px;">✂ Recadrée</span>'
         : '<span class="badge badge-warn" style="font-size:10px;">Non recadrée</span>'}`;
@@ -355,8 +355,8 @@ function openProfilDetail(profil) {
 
   document.getElementById('profil-detail-name').textContent = name;
   const body = document.getElementById('profil-detail-body');
-  const avatarHtml = (img&&img.dataUrl)
-    ? `<div class="profil-detail-avatar"><img src="${img.dataUrl}" /></div>`
+  const avatarHtml = (img&&(img.dataUrl||img.hostedUrl))
+    ? `<div class="profil-detail-avatar"><img src="${img.dataUrl||img.hostedUrl}" /></div>`
     : `<div class="profil-detail-avatar" style="border:2px dashed var(--border);font-size:36px;color:var(--text3);">✦</div>`;
   body.innerHTML = `
     <div class="profil-detail-section">

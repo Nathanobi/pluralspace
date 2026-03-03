@@ -272,8 +272,16 @@ async function fbPushAll() {
     fbSetSyncStatus('syncing');
     const lastSync  = fbGetLastSync();
     const syncStart = Date.now();
-    const isFirst   = lastSync === 0;
     let totalPushed = 0;
+
+    // Vérifier si Firestore est vide pour cette utilisatrice (vraie première sync)
+    // lastSync peut être défini par pullAll même si Firestore est vide
+    let firestoreEmpty = false;
+    try {
+      const testSnap = await fbColRef('prenoms').limit(1).get();
+      firestoreEmpty = testSnap.empty;
+    } catch(e) { /* quota ou réseau — on se fie à lastSync */ }
+    const isFirst = lastSync === 0 || firestoreEmpty;
 
     // ── Étape 1 : uploader sur imgbb les images sans hostedUrl ──
     const imgbbKey = localStorage.getItem('ps-imgbb-key') || '';

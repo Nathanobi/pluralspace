@@ -67,7 +67,7 @@ function renderImages() {
     const imgTags = (img.tags||[]).map(tid=>tags.find(t=>t.id===tid)).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,"fr",{sensitivity:"base"}));
     const tagsHtml = imgTags.slice(0,3).map(tagPillHtml).join('');
     return `<div class="image-card" data-img-id="${img.id}">
-      ${img.dataUrl ? `<img class="image-card-thumb" src="${img.dataUrl}" loading="lazy" />` : '<div class="image-card-thumb-placeholder">◈</div>'}
+      ${(img.dataUrl||img.hostedUrl) ? `<img class="image-card-thumb" src="${img.dataUrl||img.hostedUrl}" loading="lazy" />` : '<div class="image-card-thumb-placeholder">◈</div>'}
       <div class="image-card-body">
         <div class="image-card-name${p?'':' unlinked'}">${p?esc(p.name):'Sans prénom'}</div>
         ${imgTags.length>0 ? `<div class="image-card-tags">${tagsHtml}${imgTags.length>3?`<span style="font-size:11px;color:var(--text3);">+${imgTags.length-3}</span>`:''}</div>` : ''}
@@ -151,7 +151,7 @@ function openImageModal(img) {
   document.getElementById('btn-copy-hosted-url').style.display = 'none';
   document.getElementById('img-upload-progress').style.display = 'none';
   if (img && img.dataUrl) {
-    document.getElementById('img-preview').src = img.dataUrl;
+    document.getElementById('img-preview').src = img.dataUrl||img.hostedUrl||'';
     document.getElementById('img-drop-content').style.display='none';
     document.getElementById('img-preview-wrap').style.display='';
     updateCropStatusUI(img.isCropped, img.originalDataUrl);
@@ -340,7 +340,7 @@ document.getElementById('btn-create-tag-img').addEventListener('click', () => {
 function openImageDetail(img) {
   const p = img.prenomId ? prenoms.find(x=>x.id===img.prenomId) : null;
   document.getElementById('modal-image-detail-name').textContent = p ? p.name : 'Image sans prénom';
-  document.getElementById('modal-image-detail-img').src  = img.dataUrl||'';
+  document.getElementById('modal-image-detail-img').src  = img.dataUrl||img.hostedUrl||'';
   const imgTags = (img.tags||[]).map(tid=>tags.find(t=>t.id===tid)).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,"fr",{sensitivity:"base"}));
   document.getElementById('modal-image-detail-info').innerHTML =
     (p ? `<span class="badge badge-success">✓ Lié à ${esc(p.name)}</span>` : '<span class="badge badge-warn">◌ Sans prénom</span>')
