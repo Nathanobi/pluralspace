@@ -1,5 +1,5 @@
 // ── IMAGES ──
-let imgSort = 'chrono', imgSearch = '', imgTagFilterMap = new Map(), imgUnlinkedOnly = false;
+let imgSort = 'alpha', imgSearch = '', imgTagFilterMap = new Map(), imgUnlinkedOnly = false;
 let editingImageId = null, selectedPrenomForImage = null, selectedTagsForImage = [];
 let currentOriginalDataUrl = null;
 
@@ -385,6 +385,7 @@ function openImageDetail(img) {
     a.click();
   };
 }('click',  () => document.getElementById('modal-image-detail').classList.remove('open'));
+document.getElementById('modal-image-detail-close').addEventListener('click',  () => document.getElementById('modal-image-detail').classList.remove('open'));
 document.getElementById('modal-image-detail-close2').addEventListener('click', () => document.getElementById('modal-image-detail').classList.remove('open'));
 
 // ── CROP ENGINE ──
