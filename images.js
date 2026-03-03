@@ -150,12 +150,39 @@ function openImageModal(img) {
   document.getElementById('img-hosted-url').textContent = '';
   document.getElementById('btn-copy-hosted-url').style.display = 'none';
   document.getElementById('img-upload-progress').style.display = 'none';
-  if (img && img.dataUrl) {
-    document.getElementById('img-preview').src = img.dataUrl||img.hostedUrl||'';
+  if (img && img.dataUrl && img.dataUrl.startsWith('data:image')) {
+    document.getElementById('img-preview').src = img.dataUrl;
     document.getElementById('img-drop-content').style.display='none';
     document.getElementById('img-preview-wrap').style.display='';
     updateCropStatusUI(img.isCropped, img.originalDataUrl);
     showHostedZone(img);
+  } else if (img && img.hostedUrl) {
+    // Pas de dataUrl local mais hostedUrl disponible → télécharger et convertir en base64
+    document.getElementById('img-drop-content').style.display='none';
+    document.getElementById('img-preview-wrap').style.display='';
+    document.getElementById('img-preview').src = img.hostedUrl;
+    updateCropStatusUI(img.isCropped, null);
+    showHostedZone(img);
+    // Télécharger en arrière-plan pour avoir un vrai dataUrl local
+    toast('Chargement de l\'image…', 'info');
+    fetch(img.hostedUrl)
+      .then(r => r.blob())
+      .then(blob => new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result);
+        reader.onerror = rej;
+        reader.readAsDataURL(blob);
+      }))
+      .then(async dataUrl => {
+        img.dataUrl = dataUrl;
+        img.originalDataUrl = dataUrl;
+        await dbPut('images', img);
+        document.getElementById('img-preview').src = dataUrl;
+        currentOriginalDataUrl = dataUrl;
+        updateCropStatusUI(img.isCropped, dataUrl);
+        toast('Image chargée localement ✓', 'success');
+      })
+      .catch(() => toast('Image affichée depuis le cloud (modification limitée)', 'info'));
   }
   if (img && img.prenomId) { const p=prenoms.find(x=>x.id===img.prenomId); if(p) selectPrenomForImage(p); }
   renderImgTagChips();

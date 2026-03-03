@@ -34,6 +34,8 @@ function fbInit() {
     fbDb   = firebase.firestore();
     // Activer la persistence offline (fonctionne hors ligne)
     console.log('[Firebase] Initialisé ✓');
+    // Gérer le retour après signInWithRedirect (PWA iOS)
+    fbAuth.getRedirectResult().catch(() => {});
     fbWatchAuthState();
   } catch(e) {
     console.error('[Firebase] Erreur init :', e);
@@ -48,8 +50,15 @@ async function fbSignIn() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    await fbAuth.signInWithPopup(provider);
-    // fbWatchAuthState gère le reste
+    // En mode PWA standalone sur iOS, les popups sont bloquées → utiliser redirect
+    const isStandalone = window.navigator.standalone === true
+      || window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) {
+      await fbAuth.signInWithRedirect(provider);
+      // La page se recharge après redirect — fbWatchAuthState gère le reste
+    } else {
+      await fbAuth.signInWithPopup(provider);
+    }
   } catch(e) {
     if (e.code !== 'auth/popup-closed-by-user') {
       toast('Erreur de connexion Google.', 'error');
