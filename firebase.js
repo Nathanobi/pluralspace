@@ -27,7 +27,7 @@ const SYNC_COLLECTIONS = ['prenoms', 'tags', 'proxys', 'images', 'profils'];
 const SYNC_DEBOUNCE_MS = 800;
 
 // ── INIT SDK (chargé via CDN dans index.html) ──
-function fbInit() {
+async function fbInit() {
   try {
     fbApp  = firebase.initializeApp(FIREBASE_CONFIG);
     fbAuth = firebase.auth();
@@ -35,7 +35,15 @@ function fbInit() {
     // Activer la persistence offline (fonctionne hors ligne)
     console.log('[Firebase] Initialisé ✓');
     // Gérer le retour après signInWithRedirect (PWA iOS)
-    fbAuth.getRedirectResult().catch(() => {});
+    // On attend le résultat avant de démarrer le watcher d'auth
+    try {
+      const result = await fbAuth.getRedirectResult();
+      if (result && result.user) {
+        console.log('[Firebase] Retour redirect OK :', result.user.email);
+      }
+    } catch(e) {
+      console.warn('[Firebase] getRedirectResult :', e.code);
+    }
     fbWatchAuthState();
   } catch(e) {
     console.error('[Firebase] Erreur init :', e);
@@ -50,12 +58,12 @@ async function fbSignIn() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    // En mode PWA standalone sur iOS, les popups sont bloquées → utiliser redirect
-    const isStandalone = window.navigator.standalone === true
-      || window.matchMedia('(display-mode: standalone)').matches;
-    if (isStandalone) {
+    // iOS Safari (standalone ou non) bloque les popups OAuth → redirect obligatoire
+    // Android et desktop → popup (plus fluide, pas de rechargement de page)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
       await fbAuth.signInWithRedirect(provider);
-      // La page se recharge après redirect — fbWatchAuthState gère le reste
+      // La page se recharge après redirect — getRedirectResult() dans fbInit gère le retour
     } else {
       await fbAuth.signInWithPopup(provider);
     }

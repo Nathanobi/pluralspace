@@ -414,7 +414,10 @@
     @media (max-width: 640px) {
       /* ── LAYOUT GLOBAL ── */
       html, body { overflow: hidden; }
-      #app { flex-direction: column-reverse; }
+      #app {
+        flex-direction: column-reverse;
+        padding-top: 0; /* safe-area géré par main */
+      }
 
       /* ── NAV → barre fixe en bas ── */
       nav {
@@ -478,9 +481,10 @@
       .nav-footer .nav-link { border-radius: 0; }
       #btn-nav-toggle { display: none; }
 
-      /* ── MAIN : espace sous la nav fixe ── */
+      /* ── MAIN : espace sous la nav fixe + safe area top pour iPhone notch ── */
       main {
         flex: 1;
+        padding-top: env(safe-area-inset-top);
         padding-bottom: calc(60px + env(safe-area-inset-bottom));
         overflow-y: auto;
         overflow-x: hidden;
@@ -488,7 +492,7 @@
       }
 
       /* ── PAGES ── */
-      .page { padding: 16px 14px 24px; }
+      .page { padding: 16px 14px 32px; }
       .page-title { font-size: 24px; }
       .page-header { margin-bottom: 18px; gap: 10px; }
       .page-header .btn { padding: 10px 14px; font-size: 12px; min-height: 44px; }
@@ -803,8 +807,8 @@
       <!-- Filtres -->
       <div class="prenom-toolbar" style="margin-bottom:16px;">
         <input type="text" class="input" id="image-search" placeholder="🔍  Rechercher par prénom ou tag…" />
-        <button class="sort-btn active" data-img-sort="alpha">A → Z</button>
-        <button class="sort-btn" data-img-sort="chrono">Plus récent</button>
+        <button class="sort-btn active" data-img-sort="chrono">Plus récent</button>
+        <button class="sort-btn" data-img-sort="alpha">A → Z</button>
         <button class="sort-btn" data-img-sort="unlinked">Sans prénom</button>
       </div>
       <div class="tag-filter-row" id="img-tag-filter-row">
@@ -972,7 +976,7 @@
             <div id="fb-sync-row" class="config-row" style="display:none;">
               <div class="config-row-label">
                 <div class="config-row-name">Synchronisation automatique</div>
-                <div class="config-row-desc">Chaque modification est envoyée en temps réel vers le cloud</div>
+                <div class="config-row-desc">Vos modifications sont envoyées automatiquement vers le cloud</div>
               </div>
               <div class="config-row-control">
                 <div style="display:flex;align-items:center;gap:8px;">
