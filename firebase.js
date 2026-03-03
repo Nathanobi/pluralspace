@@ -75,8 +75,23 @@ function fbWatchAuthState() {
       fbUser = user;
       console.log('[Firebase] Connectée :', user.email);
       fbUpdateUI();
-      // Charger les données cloud puis activer la sync auto
-      await fbPullAll();
+      // Vérifier si Firestore a des données avant de pull
+      // (évite d'écraser les données locales si c'est la première connexion)
+      try {
+        const testSnap = await fbColRef('prenoms').limit(1).get();
+        if (!testSnap.empty) {
+          // Firestore a des données → pull pour fusionner
+          await fbPullAll();
+        } else {
+          // Firestore vide → garder les données locales, juste mettre le statut
+          fbSetSyncStatus('ok');
+          console.log('[Firebase] Firestore vide — données locales conservées');
+          toast('Connectée ✓ — cliquez "Envoyer tout" pour synchroniser vos données.', 'success');
+        }
+      } catch(e) {
+        fbSetSyncStatus('error');
+        console.error('[Firebase] Vérification Firestore :', e);
+      }
       fbStartListeners();
     } else {
       fbUser = null;
@@ -93,42 +108,58 @@ function fbColRef(collection) {
   return fbDb.collection('users').doc(fbUser.uid).collection(collection);
 }
 
-// Pull complet : charger tout depuis Firestore → IndexedDB + mémoire
+// Pull depuis Firestore → fusionne avec les données locales (ne remplace jamais)
 async function fbPullAll() {
   if (!fbUser || !fbDb) return;
   try {
     fbSetSyncStatus('syncing');
+
+    // Compter le total de docs dans Firestore
+    let totalRemote = 0;
     for (const col of SYNC_COLLECTIONS) {
       const snap = await fbColRef(col).get();
-      if (snap.empty) continue;
+      totalRemote += snap.size;
 
-      // Vider la collection locale et remplacer
-      await dbClear(col);
+      if (snap.empty) continue; // Firestore vide pour cette collection → garder local
 
-      const items = [];
-      snap.forEach(doc => items.push(doc.data()));
+      const remoteItems = [];
+      snap.forEach(doc => remoteItems.push(doc.data()));
 
-      for (const item of items) {
-        await dbPut(col, item);
-      }
-
-      // Mettre à jour la mémoire
-      if      (col === 'prenoms') prenoms = items;
-      else if (col === 'tags')    tags    = items;
-      else if (col === 'proxys')  proxys  = items;
-      else if (col === 'profils') profils = items;
-      else if (col === 'images') {
-        // Fusionner avec images locales pour préserver les dataUrl (non stockés dans Firestore)
-        for (const remoteImg of items) {
-          const localImg = images.find(x => x.id === remoteImg.id);
+      if (col === 'images') {
+        // Images : fusionner en préservant les dataUrl locaux
+        const localImages = await dbGetAll('images');
+        for (const remoteImg of remoteItems) {
+          const localImg = localImages.find(x => x.id === remoteImg.id);
           if (localImg) {
+            // Préserver les données locales non stockées dans Firestore
             remoteImg.dataUrl         = localImg.dataUrl         || null;
             remoteImg.originalDataUrl = localImg.originalDataUrl || null;
           }
+          // Écrire sans déclencher ps:dbput (pour éviter boucle)
+          await new Promise((res,rej) => {
+            const r = db.transaction('images','readwrite').objectStore('images').put(remoteImg);
+            r.onsuccess = () => res(); r.onerror = rej;
+          });
         }
-        images = items;
+        // Reconstruire images[] depuis IndexedDB (source de vérité)
+        images = await dbGetAll('images');
+      } else {
+        // Autres collections : écrire chaque doc distant (merge, pas remplacement)
+        for (const item of remoteItems) {
+          await new Promise((res,rej) => {
+            const r = db.transaction(col,'readwrite').objectStore(col).put(item);
+            r.onsuccess = () => res(); r.onerror = rej;
+          });
+        }
+        // Recharger depuis IndexedDB
+        const updated = await dbGetAll(col);
+        if      (col === 'prenoms') prenoms = updated;
+        else if (col === 'tags')    tags    = updated;
+        else if (col === 'proxys')  proxys  = updated;
+        else if (col === 'profils') profils = updated;
       }
     }
+
     // Rafraîchir tout l'affichage
     renderPrenoms(); renderProxys(); renderImages();
     renderProfils(); renderTagsPage(); renderTagsPrenomView();
@@ -137,7 +168,7 @@ async function fbPullAll() {
     renderNoProxyBanner(); updateStats();
     fbSetLastSync(Date.now());
     fbSetSyncStatus('ok');
-    console.log('[Firebase] Pull terminé ✓');
+    console.log('[Firebase] Pull terminé ✓ (' + totalRemote + ' docs distants)');
   } catch(e) {
     fbSetSyncStatus('error');
     console.error('[Firebase] Pull erreur :', e);
