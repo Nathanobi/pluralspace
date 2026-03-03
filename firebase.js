@@ -17,8 +17,7 @@ let fbApp      = null;
 let fbAuth     = null;
 let fbDb       = null;
 let fbUser     = null;          // utilisatrice connectée
-let fbSyncActive = false;       // listeners temps réel actifs
-let fbListeners  = [];          // unsubscribe functions
+// listeners temps réel désactivés — sync via push auto uniquement
 let fbSyncDebounce = {};        // debounce par collection
 
 // Collections synchronisées (pas les settings — trop local)
@@ -185,41 +184,12 @@ function fbPushDebounced(collection, item) {
   fbSyncDebounce[key] = setTimeout(() => fbPushDoc(collection, item), SYNC_DEBOUNCE_MS);
 }
 
-// Listeners temps réel : Firestore → local (pour sync multi-appareils)
+// Listeners temps réel désactivés — trop coûteux en lectures Firestore (55k/jour)
+// La sync se fait via push auto (ps:dbput) + boutons Envoyer/Recharger
 function fbStartListeners() {
-  if (fbSyncActive || !fbUser) return;
-  fbSyncActive = true;
-
-  for (const col of SYNC_COLLECTIONS) {
-    const unsub = fbColRef(col).onSnapshot(snap => {
-      snap.docChanges().forEach(async change => {
-        const data = change.doc.data();
-        if (change.type === 'added' || change.type === 'modified') {
-          await dbPut(col, data);
-          fbMergeInMemory(col, data, false);
-        } else if (change.type === 'removed') {
-          await dbDelete(col, data.id);
-          fbMergeInMemory(col, data, true);
-        }
-      });
-      // Rafraîchir l'affichage si des changements sont venus d'un autre appareil
-      if (!snap.metadata.hasPendingWrites) {
-        fbRefreshViews();
-      }
-    }, err => {
-      console.error('[Firebase] Listener erreur :', err);
-      fbSetSyncStatus('error');
-    });
-    fbListeners.push(unsub);
-  }
-  console.log('[Firebase] Listeners temps réel actifs ✓');
+  console.log('[Firebase] Sync sans listeners temps réel (économie de quota) ✓');
 }
-
-function fbStopListeners() {
-  fbListeners.forEach(unsub => unsub());
-  fbListeners = [];
-  fbSyncActive = false;
-}
+function fbStopListeners() {}
 
 // Mettre à jour la mémoire sans re-fetch complet
 function fbMergeInMemory(col, item, remove) {
