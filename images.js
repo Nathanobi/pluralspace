@@ -309,9 +309,18 @@ async function saveImage() {
     toast('Image modifiée.','success'); logHistory('Image modifiée', 'image');
   } else {
     const img={ id:uid(), dataUrl, isCropped, originalDataUrl:currentOriginalDataUrl||dataUrl, prenomId:selectedPrenomForImage?selectedPrenomForImage.id:null, tags:selectedTagsForImage.slice(), createdAt:Date.now(), hostedUrl:null };
+    // Auto-upload imgbb si clé disponible
+    if (getImgbbKey()) {
+      try {
+        img.hostedUrl = await uploadToImgbb(dataUrl);
+        toast('Image ajoutée et hébergée ✓','success');
+      } catch(e) {
+        toast('Image ajoutée (hébergement échoué — sync limitée)','info');
+      }
+    }
     await dbPut('images',img); images.push(img);
     if (selectedPrenomForImage) { selectedPrenomForImage.hasImage=true; selectedPrenomForImage.imageId=img.id; await dbPut('prenoms',selectedPrenomForImage); }
-    toast('Image ajoutée.','success'); logHistory('Image ajoutée', 'image');
+    if (!getImgbbKey()) toast('Image ajoutée.','success'); logHistory('Image ajoutée', 'image');
   }
   currentOriginalDataUrl=null;
   document.getElementById('modal-image').classList.remove('open');

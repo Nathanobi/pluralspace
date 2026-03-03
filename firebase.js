@@ -75,22 +75,22 @@ function fbWatchAuthState() {
       fbUser = user;
       console.log('[Firebase] Connectée :', user.email);
       fbUpdateUI();
-      // Vérifier si Firestore a des données avant de pull
-      // (évite d'écraser les données locales si c'est la première connexion)
+      fbSetSyncStatus('ok');
+      // Ne pas puller automatiquement — trop coûteux en lectures (313+ docs/connexion)
+      // L'utilisatrice clique "Recharger" quand elle veut récupérer les données du cloud
+      // Sauf si les données locales sont vides (premier appareil vierge)
       try {
-        const testSnap = await fbColRef('prenoms').limit(1).get();
-        if (!testSnap.empty) {
-          // Firestore a des données → pull pour fusionner
+        const localPrenoms = await dbGetAll('prenoms');
+        if (localPrenoms.length === 0) {
+          // Appareil vierge → pull automatique justifié
           await fbPullAll();
+          toast('Données synchronisées depuis le cloud ✓', 'success');
         } else {
-          // Firestore vide → garder les données locales, juste mettre le statut
-          fbSetSyncStatus('ok');
-          console.log('[Firebase] Firestore vide — données locales conservées');
-          toast('Connectée ✓ — cliquez "Envoyer tout" pour synchroniser vos données.', 'success');
+          toast('Connectée ✓', 'success');
         }
       } catch(e) {
-        fbSetSyncStatus('error');
-        console.error('[Firebase] Vérification Firestore :', e);
+        console.error('[Firebase] Vérification locale :', e);
+        fbSetSyncStatus('ok');
       }
       fbStartListeners();
     } else {
