@@ -717,49 +717,71 @@
 
       <!-- Liens utiles -->
       <div class="accueil-section-title">◇ Liens utiles</div>
-      <div class="useful-links-grid">
-        <a class="useful-link-card" href="https://pluralkit.me" target="_blank" rel="noopener">
-          <div class="useful-link-icon">⟡</div>
-          <div class="useful-link-body">
-            <div class="useful-link-name">PluralKit</div>
-            <div class="useful-link-desc">Gérer votre système sur Discord</div>
-          </div>
-          <div class="useful-link-arrow">↗</div>
-        </a>
-        <a class="useful-link-card" href="https://dash.pluralkit.me" target="_blank" rel="noopener">
-          <div class="useful-link-icon">◉</div>
-          <div class="useful-link-body">
-            <div class="useful-link-name">PluralKit Dashboard</div>
-            <div class="useful-link-desc">Interface web officielle PluralKit</div>
-          </div>
-          <div class="useful-link-arrow">↗</div>
-        </a>
-        <a class="useful-link-card" href="https://www.pinterest.fr" target="_blank" rel="noopener">
-          <div class="useful-link-icon">✦</div>
-          <div class="useful-link-body">
-            <div class="useful-link-name">Pinterest</div>
-            <div class="useful-link-desc">Trouver des images et références visuelles</div>
-          </div>
-          <div class="useful-link-arrow">↗</div>
-        </a>
-        <a class="useful-link-card" href="https://imgbb.com" target="_blank" rel="noopener">
-          <div class="useful-link-icon">✧</div>
-          <div class="useful-link-body">
-            <div class="useful-link-name">imgbb</div>
-            <div class="useful-link-desc">Héberger une image pour obtenir une URL</div>
-          </div>
-          <div class="useful-link-arrow">↗</div>
-        </a>
-
-        <a class="useful-link-card" href="https://discord.com" target="_blank" rel="noopener">
-          <div class="useful-link-icon">◈</div>
-          <div class="useful-link-body">
-            <div class="useful-link-name">Discord</div>
-            <div class="useful-link-desc">Essayer vos proxys en conditions réelles</div>
-          </div>
-          <div class="useful-link-arrow">↗</div>
-        </a>
+      <div class="useful-links-grid" id="useful-links-grid">
+        <!-- Généré par JS pour support deep links applis -->
       </div>
+      <script>
+      (function() {
+        const isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+        const links = [
+          {
+            icon: '⟡', name: 'PluralKit', desc: 'Gérer votre système sur Discord',
+            web: 'https://pluralkit.me',
+            android: 'intent://pluralkit.me#Intent;scheme=https;package=com.discord;end',
+            ios: 'https://pluralkit.me'
+          },
+          {
+            icon: '◉', name: 'PluralKit Dashboard', desc: 'Interface web officielle PluralKit',
+            web: 'https://dash.pluralkit.me',
+            ios: 'https://dash.pluralkit.me',
+            android: 'https://dash.pluralkit.me'
+          },
+          {
+            icon: '✦', name: 'Pinterest', desc: 'Trouver des images et références visuelles',
+            web: 'https://www.pinterest.fr',
+            ios: 'pinterest://',
+            iosFallback: 'https://www.pinterest.fr',
+            android: 'intent://pinterest.com#Intent;scheme=https;package=com.pinterest;end'
+          },
+          {
+            icon: '✧', name: 'imgbb', desc: 'Héberger une image pour obtenir une URL',
+            web: 'https://imgbb.com',
+            ios: 'https://imgbb.com',
+            android: 'https://imgbb.com'
+          },
+          {
+            icon: '◈', name: 'Discord', desc: 'Essayer vos proxys en conditions réelles',
+            web: 'https://discord.com',
+            ios: 'discord://',
+            iosFallback: 'https://apps.apple.com/app/discord/id985746746',
+            android: 'intent://discord.com#Intent;scheme=https;package=com.discord;end'
+          }
+        ];
+        const grid = document.getElementById('useful-links-grid');
+        grid.innerHTML = links.map(l => {
+          let href = l.web;
+          if (isIOS && l.ios)     href = l.ios;
+          if (isAndroid && l.android) href = l.android;
+          const hasAppLink = (isIOS && l.ios && l.ios !== l.web) || (isAndroid && l.android && !l.android.startsWith('https'));
+          const badge = hasAppLink ? '<span style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--accent2);border:1px solid rgba(167,139,250,0.3);border-radius:4px;padding:1px 5px;margin-left:6px;">App</span>' : '';
+          return \`<a class="useful-link-card" href="\${href}" \${l.iosFallback && isIOS ? 'data-fallback="'+l.iosFallback+'"' : ''} target="_blank" rel="noopener">
+            <div class="useful-link-icon">\${l.icon}</div>
+            <div class="useful-link-body">
+              <div class="useful-link-name">\${l.name}\${badge}</div>
+              <div class="useful-link-desc">\${l.desc}</div>
+            </div>
+            <div class="useful-link-arrow">↗</div>
+          </a>\`;
+        }).join('');
+        // Fallback pour les liens appli iOS qui échouent
+        grid.querySelectorAll('[data-fallback]').forEach(a => {
+          a.addEventListener('click', () => {
+            setTimeout(() => { window.open(a.dataset.fallback, '_blank'); }, 1500);
+          });
+        });
+      })();
+      </script>
 
 
     </section>

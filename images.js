@@ -8,22 +8,33 @@ function renderImgTagFilters() {
   const cont = document.getElementById('img-tag-filters');
   if (tags.length===0) { row.style.display='none'; return; }
   row.style.display='flex';
-  cont.innerHTML = tagsSorted().map(t => {
-    const c     = getTagColor(t.color);
-    const state = imgTagFilterMap.get(t.id) || 0;
-    let style;
-    if      (state ===  1) style = `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
-    else if (state === -1) style = `background:rgba(232,122,122,0.15);border:1px solid rgba(232,122,122,0.45);color:#e87a7a;text-decoration:line-through;`;
-    else                   style = `background:transparent;border:1px solid var(--border2);color:var(--text3);`;
-    return `<span class="tag-pill" data-img-filter-tag="${t.id}" style="${style}cursor:pointer;">${esc(t.name)}</span>`;
-  }).join('');
+  const noTagState = imgTagFilterMap.get('__notag__') || 0;
+  const noTagStyle = noTagState === 1
+    ? 'background:rgba(107,95,128,0.2);border:1px solid rgba(107,95,128,0.6);color:var(--text2);'
+    : 'background:transparent;border:1px solid var(--border2);color:var(--text3);';
+  cont.innerHTML =
+    `<span class="tag-pill" data-img-filter-tag="__notag__" style="${noTagStyle}cursor:pointer;">◌ Sans tags</span>` +
+    tagsSorted().map(t => {
+      const c     = getTagColor(t.color);
+      const state = imgTagFilterMap.get(t.id) || 0;
+      let style;
+      if      (state ===  1) style = `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
+      else if (state === -1) style = `background:rgba(232,122,122,0.15);border:1px solid rgba(232,122,122,0.45);color:#e87a7a;text-decoration:line-through;`;
+      else                   style = `background:transparent;border:1px solid var(--border2);color:var(--text3);`;
+      return `<span class="tag-pill" data-img-filter-tag="${t.id}" style="${style}cursor:pointer;">${esc(t.name)}</span>`;
+    }).join('');
   cont.querySelectorAll('[data-img-filter-tag]').forEach(pill => {
     pill.addEventListener('click', () => {
       const id = pill.dataset.imgFilterTag;
-      const s  = imgTagFilterMap.get(id) || 0;
-      if      (s ===  0) imgTagFilterMap.set(id,  1);
-      else if (s ===  1) imgTagFilterMap.set(id, -1);
-      else               imgTagFilterMap.delete(id);
+      if (id === '__notag__') {
+        const s = imgTagFilterMap.get('__notag__') || 0;
+        s === 0 ? imgTagFilterMap.set('__notag__', 1) : imgTagFilterMap.delete('__notag__');
+      } else {
+        const s = imgTagFilterMap.get(id) || 0;
+        if      (s ===  0) imgTagFilterMap.set(id,  1);
+        else if (s ===  1) imgTagFilterMap.set(id, -1);
+        else               imgTagFilterMap.delete(id);
+      }
       renderImgTagFilters(); renderImages();
     });
   });
@@ -41,8 +52,12 @@ function getFilteredImages() {
     });
   }
   for (const [tid, state] of imgTagFilterMap) {
-    if (state ===  1) list = list.filter(img =>  (img.tags||[]).includes(tid));
-    if (state === -1) list = list.filter(img => !(img.tags||[]).includes(tid));
+    if (tid === '__notag__') {
+      if (state === 1) list = list.filter(img => !(img.tags||[]).length);
+    } else {
+      if (state ===  1) list = list.filter(img =>  (img.tags||[]).includes(tid));
+      if (state === -1) list = list.filter(img => !(img.tags||[]).includes(tid));
+    }
   }
   if (imgSort==='alpha') list.sort((a,b)=>{
     const pa=a.prenomId?prenoms.find(x=>x.id===a.prenomId):null;
@@ -204,6 +219,7 @@ function showHostedZone(img) {
 function updateCropStatusUI(isCropped, originalDataUrl) {
   const el = document.getElementById('img-crop-status');
   if (!isCropped) { el.innerHTML='<span style="color:var(--text3);">◌ Image non recadrée</span>'; return; }
+  // "recadrée" présent → saveImage() détectera isCropped=true
   el.innerHTML = '<span style="color:var(--success);">✂ Image recadrée</span>'
     + (originalDataUrl ? ' · <button class="btn btn-ghost btn-sm" id="btn-show-original" style="padding:2px 8px;font-size:11px;">Voir originale</button>' : '');
   const btn = el.querySelector('#btn-show-original');
@@ -313,7 +329,7 @@ async function saveImage() {
   const preview   = document.getElementById('img-preview');
   const dataUrl   = preview.dataset.showingOriginal==='true' ? (preview.dataset.croppedSrc||preview.src) : preview.src;
   const statusEl  = document.getElementById('img-crop-status');
-  const isCropped = statusEl.innerHTML.includes('Recadrée');
+  const isCropped = statusEl.innerHTML.includes('recadrée') || statusEl.innerHTML.includes('Recadrée');
   if (!dataUrl||!dataUrl.startsWith('data:image')) {
     if (!editingImageId) { toast('Veuillez sélectionner une image.','error'); return; }
   }
@@ -476,9 +492,45 @@ function clampCrop() {
 document.getElementById('crop-canvas').addEventListener('mousedown', e => { cropDragging=true; cropDragStart={x:e.clientX,y:e.clientY,offX:cropState.offX,offY:cropState.offY}; e.preventDefault(); });
 document.addEventListener('mousemove', e => { if(!cropDragging||!cropImg)return; cropState.offX=cropDragStart.offX+(e.clientX-cropDragStart.x); cropState.offY=cropDragStart.offY+(e.clientY-cropDragStart.y); clampCrop(); drawCrop(); });
 document.addEventListener('mouseup', () => { cropDragging=false; });
-document.getElementById('crop-canvas').addEventListener('touchstart', e => { if(e.touches.length===1){cropDragging=true;const t=e.touches[0];cropDragStart={x:t.clientX,y:t.clientY,offX:cropState.offX,offY:cropState.offY};e.preventDefault();}},{passive:false});
-document.getElementById('crop-canvas').addEventListener('touchmove',  e => { if(!cropDragging||!cropImg||e.touches.length!==1)return;const t=e.touches[0];cropState.offX=cropDragStart.offX+(t.clientX-cropDragStart.x);cropState.offY=cropDragStart.offY+(t.clientY-cropDragStart.y);clampCrop();drawCrop();e.preventDefault();},{passive:false});
-document.getElementById('crop-canvas').addEventListener('touchend',   () => { cropDragging=false; });
+let pinchStartDist = 0, pinchStartScale = 1;
+document.getElementById('crop-canvas').addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    cropDragging = true;
+    const t = e.touches[0];
+    cropDragStart = {x:t.clientX, y:t.clientY, offX:cropState.offX, offY:cropState.offY};
+  } else if (e.touches.length === 2) {
+    cropDragging = false;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchStartDist  = Math.hypot(dx, dy);
+    pinchStartScale = cropState.scale;
+  }
+  e.preventDefault();
+}, {passive:false});
+document.getElementById('crop-canvas').addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && cropImg) {
+    // Pinch zoom
+    const dx   = e.touches[0].clientX - e.touches[1].clientX;
+    const dy   = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    const ratio = dist / pinchStartDist;
+    const newScale = Math.max(10, Math.min(400, pinchStartScale * ratio));
+    const s = document.getElementById('crop-canvas').width;
+    cropState.offX = s/2 - (s/2 - cropState.offX) * (newScale / cropState.scale);
+    cropState.offY = s/2 - (s/2 - cropState.offY) * (newScale / cropState.scale);
+    cropState.scale = newScale;
+    clampCrop(); drawCrop();
+    document.getElementById('crop-zoom').value = Math.round(newScale);
+    document.getElementById('crop-zoom-label').textContent = Math.round(newScale) + '%';
+  } else if (cropDragging && cropImg && e.touches.length === 1) {
+    const t = e.touches[0];
+    cropState.offX = cropDragStart.offX + (t.clientX - cropDragStart.x);
+    cropState.offY = cropDragStart.offY + (t.clientY - cropDragStart.y);
+    clampCrop(); drawCrop();
+  }
+  e.preventDefault();
+}, {passive:false});
+document.getElementById('crop-canvas').addEventListener('touchend', () => { cropDragging = false; });
 document.getElementById('crop-canvas').addEventListener('wheel', e => {
   if (!cropImg) return; e.preventDefault();
   const canvas=document.getElementById('crop-canvas'); const s=canvas.width;

@@ -13,22 +13,33 @@ function renderProxyTagFilters() {
   if (!row || !cont) return;
   if (tags.length===0) { row.style.display='none'; return; }
   row.style.display='flex';
-  cont.innerHTML = tagsSorted().map(t => {
-    const c     = getTagColor(t.color);
-    const state = proxyTagFilterMap.get(t.id) || 0;
-    let style;
-    if      (state ===  1) style = `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
-    else if (state === -1) style = `background:rgba(232,122,122,0.15);border:1px solid rgba(232,122,122,0.45);color:#e87a7a;text-decoration:line-through;`;
-    else                   style = `background:transparent;border:1px solid var(--border2);color:var(--text3);`;
-    return `<span class="tag-pill" data-proxy-filter-tag="${t.id}" style="${style}cursor:pointer;">${esc(t.name)}</span>`;
-  }).join('');
+  const noTagState = proxyTagFilterMap.get('__notag__') || 0;
+  const noTagStyle = noTagState === 1
+    ? 'background:rgba(107,95,128,0.2);border:1px solid rgba(107,95,128,0.6);color:var(--text2);'
+    : 'background:transparent;border:1px solid var(--border2);color:var(--text3);';
+  cont.innerHTML =
+    `<span class="tag-pill" data-proxy-filter-tag="__notag__" style="${noTagStyle}cursor:pointer;">◌ Sans tags</span>` +
+    tagsSorted().map(t => {
+      const c     = getTagColor(t.color);
+      const state = proxyTagFilterMap.get(t.id) || 0;
+      let style;
+      if      (state ===  1) style = `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
+      else if (state === -1) style = `background:rgba(232,122,122,0.15);border:1px solid rgba(232,122,122,0.45);color:#e87a7a;text-decoration:line-through;`;
+      else                   style = `background:transparent;border:1px solid var(--border2);color:var(--text3);`;
+      return `<span class="tag-pill" data-proxy-filter-tag="${t.id}" style="${style}cursor:pointer;">${esc(t.name)}</span>`;
+    }).join('');
   cont.querySelectorAll('[data-proxy-filter-tag]').forEach(pill => {
     pill.addEventListener('click', () => {
       const id = pill.dataset.proxyFilterTag;
-      const s  = proxyTagFilterMap.get(id) || 0;
-      if      (s ===  0) proxyTagFilterMap.set(id,  1);
-      else if (s ===  1) proxyTagFilterMap.set(id, -1);
-      else               proxyTagFilterMap.delete(id);
+      if (id === '__notag__') {
+        const s = proxyTagFilterMap.get('__notag__') || 0;
+        s === 0 ? proxyTagFilterMap.set('__notag__', 1) : proxyTagFilterMap.delete('__notag__');
+      } else {
+        const s = proxyTagFilterMap.get(id) || 0;
+        if      (s ===  0) proxyTagFilterMap.set(id,  1);
+        else if (s ===  1) proxyTagFilterMap.set(id, -1);
+        else               proxyTagFilterMap.delete(id);
+      }
       renderProxyTagFilters(); renderProxys();
     });
   });
@@ -391,8 +402,12 @@ function getFilteredProxys() {
   }
   // Filtre tags 3 états : 1=inclure, -1=exclure
   proxyTagFilterMap.forEach((st, tid) => {
-    if (st===1)  list = list.filter(px => { const p=prenoms.find(x=>x.id===px.prenomId); return !!(p&&(p.tags||[]).includes(tid)); });
-    if (st===-1) list = list.filter(px => { const p=prenoms.find(x=>x.id===px.prenomId); return  !(p&&(p.tags||[]).includes(tid)); });
+    if (tid === '__notag__') {
+      if (st === 1) list = list.filter(px => { const p=prenoms.find(x=>x.id===px.prenomId); return !p||!(p.tags||[]).length; });
+    } else {
+      if (st===1)  list = list.filter(px => { const p=prenoms.find(x=>x.id===px.prenomId); return !!(p&&(p.tags||[]).includes(tid)); });
+      if (st===-1) list = list.filter(px => { const p=prenoms.find(x=>x.id===px.prenomId); return  !(p&&(p.tags||[]).includes(tid)); });
+    }
   });
   if (proxySort==='alpha-name') list.sort((a,b)=>{
     const na=prenoms.find(p=>p.id===a.prenomId); const nb=prenoms.find(p=>p.id===b.prenomId);

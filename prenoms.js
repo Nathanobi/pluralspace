@@ -148,23 +148,34 @@ function renderTagFilters() {
   const container = document.getElementById('tag-filters');
   if (tags.length===0) { row.style.display='none'; return; }
   row.style.display='flex';
-  container.innerHTML = tagsSorted().map(t => {
-    const c     = getTagColor(t.color);
-    const state = tagFilterMap.get(t.id) || 0;
-    let style;
-    if      (state ===  1) style = `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
-    else if (state === -1) style = `background:rgba(232,122,122,0.15);border:1px solid rgba(232,122,122,0.45);color:#e87a7a;text-decoration:line-through;`;
-    else                   style = `background:transparent;border:1px solid var(--border2);color:var(--text3);`;
-    const title = state===1 ? '1 clic de plus pour masquer' : state===-1 ? '1 clic de plus pour désactiver' : 'Clic = inclure · Clic×2 = masquer';
-    return `<span class="tag-pill" data-filter-tag="${t.id}" title="${title}" style="${style}cursor:pointer;">${esc(t.name)}</span>`;
-  }).join('');
+  const noTagState = tagFilterMap.get('__notag__') || 0;
+  const noTagStyle = noTagState === 1
+    ? 'background:rgba(107,95,128,0.2);border:1px solid rgba(107,95,128,0.6);color:var(--text2);'
+    : 'background:transparent;border:1px solid var(--border2);color:var(--text3);';
+  container.innerHTML =
+    `<span class="tag-pill" data-filter-tag="__notag__" style="${noTagStyle}cursor:pointer;">◌ Sans tags</span>` +
+    tagsSorted().map(t => {
+      const c     = getTagColor(t.color);
+      const state = tagFilterMap.get(t.id) || 0;
+      let style;
+      if      (state ===  1) style = `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
+      else if (state === -1) style = `background:rgba(232,122,122,0.15);border:1px solid rgba(232,122,122,0.45);color:#e87a7a;text-decoration:line-through;`;
+      else                   style = `background:transparent;border:1px solid var(--border2);color:var(--text3);`;
+      const title = state===1 ? '1 clic de plus pour masquer' : state===-1 ? '1 clic de plus pour désactiver' : 'Clic = inclure · Clic×2 = masquer';
+      return `<span class="tag-pill" data-filter-tag="${t.id}" title="${title}" style="${style}cursor:pointer;">${esc(t.name)}</span>`;
+    }).join('');
   container.querySelectorAll('[data-filter-tag]').forEach(pill => {
     pill.addEventListener('click', () => {
       const id = pill.dataset.filterTag;
-      const s  = tagFilterMap.get(id) || 0;
-      if      (s ===  0) tagFilterMap.set(id,  1);
-      else if (s ===  1) tagFilterMap.set(id, -1);
-      else               tagFilterMap.delete(id);
+      if (id === '__notag__') {
+        const s = tagFilterMap.get('__notag__') || 0;
+        s === 0 ? tagFilterMap.set('__notag__', 1) : tagFilterMap.delete('__notag__');
+      } else {
+        const s = tagFilterMap.get(id) || 0;
+        if      (s ===  0) tagFilterMap.set(id,  1);
+        else if (s ===  1) tagFilterMap.set(id, -1);
+        else               tagFilterMap.delete(id);
+      }
       renderTagFilters(); renderPrenoms();
     });
   });
@@ -183,8 +194,12 @@ function getFilteredPrenoms() {
     else list=list.filter(p => p.name.toUpperCase().startsWith(filterLetter));
   }
   for (const [tid, state] of tagFilterMap) {
-    if (state ===  1) list = list.filter(p =>  (p.tags||[]).includes(tid));
-    if (state === -1) list = list.filter(p => !(p.tags||[]).includes(tid));
+    if (tid === '__notag__') {
+      if (state === 1) list = list.filter(p => !(p.tags||[]).length);
+    } else {
+      if (state ===  1) list = list.filter(p =>  (p.tags||[]).includes(tid));
+      if (state === -1) list = list.filter(p => !(p.tags||[]).includes(tid));
+    }
   }
   if (filterNoImage)         list=list.filter(p => !p.hasImage);
   if (filterNoProxy)         list=list.filter(p => !proxys.some(px=>px.prenomId===p.id));
@@ -274,14 +289,19 @@ function renderPrenoms() {
       const pr = prenoms.find(x=>x.id===badge.dataset.imgPopover);
       if (!pr||!pr.imageId) return;
       const img = images.find(x=>x.id===pr.imageId);
-      if (!img||!img.dataUrl) return;
+      if (!img||(!img.dataUrl&&!img.hostedUrl)) return;
       const pop = document.getElementById('img-popover');
-      document.getElementById('img-popover-img').src  = img.dataUrl;
+      document.getElementById('img-popover-img').src  = img.dataUrl||img.hostedUrl;
       document.getElementById('img-popover-name').textContent = pr.name;
       const rect = badge.getBoundingClientRect();
-      pop.style.left = Math.min(rect.left, window.innerWidth-240)+'px';
-      pop.style.top  = (rect.bottom+8)+'px';
-      pop.classList.add('open');
+      pop.style.left = '0'; pop.style.top = '0'; pop.classList.add('open');
+      const pw = pop.offsetWidth || 240, ph = pop.offsetHeight || 80;
+      let left = rect.left, top = rect.bottom + 8;
+      if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+      if (left < 8) left = 8;
+      if (top + ph > window.innerHeight - 8) top = rect.top - ph - 8;
+      if (top < 8) top = 8;
+      pop.style.left = left + 'px'; pop.style.top = top + 'px';
       const close = ev => { if(!pop.contains(ev.target)&&ev.target!==badge){ pop.classList.remove('open'); document.removeEventListener('click',close); } };
       setTimeout(() => document.addEventListener('click',close), 10);
     });
@@ -297,9 +317,14 @@ function renderPrenoms() {
       const pop = document.getElementById('proxy-popover');
       document.getElementById('proxy-popover-content').textContent = pxList.map(px=>(px.prefix||'')+pr.name+(px.suffix||'')).join('  ·  ');
       const rect = badge.getBoundingClientRect();
-      pop.style.left = Math.min(rect.left, window.innerWidth-240)+'px';
-      pop.style.top  = (rect.bottom+8)+'px';
-      pop.classList.add('open');
+      pop.style.left = '0'; pop.style.top = '0'; pop.classList.add('open');
+      const pw = pop.offsetWidth || 240, ph = pop.offsetHeight || 80;
+      let left = rect.left, top = rect.bottom + 8;
+      if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+      if (left < 8) left = 8;
+      if (top + ph > window.innerHeight - 8) top = rect.top - ph - 8;
+      if (top < 8) top = 8;
+      pop.style.left = left + 'px'; pop.style.top = top + 'px';
       const close = ev => { if(!pop.contains(ev.target)&&ev.target!==badge){ pop.classList.remove('open'); document.removeEventListener('click',close); } };
       setTimeout(() => document.addEventListener('click',close), 10);
     });

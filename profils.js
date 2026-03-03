@@ -14,19 +14,31 @@ function renderProfilTagFilters() {
   if (!row||!cont) return;
   if (!tags.length) { row.style.display='none'; return; }
   row.style.display='flex';
-  cont.innerHTML = tagsSorted().map(t => {
-    const c = getTagColor(t.color);
-    const st = profilTagFilterMap.get(t.id)||0;
-    let style='', label=esc(t.name);
-    if (st===1)       { style=`background:${c.bg};border:1px solid ${c.border};color:${c.text};`; label='✓ '+label; }
-    else if (st===-1) { style='background:rgba(220,50,50,.12);border:1px solid rgba(220,50,50,.4);color:#e07070;text-decoration:line-through;'; label='✕ '+label; }
-    else              { style=`background:transparent;border:1px solid ${c.border};color:${c.text};opacity:.6;`; }
-    return `<button class="tag-filter-pill" data-prftag="${t.id}" style="${style}">${label}</button>`;
-  }).join('');
+  const noTagSt = profilTagFilterMap.get('__notag__') || 0;
+  const noTagSty = noTagSt === 1
+    ? 'background:rgba(107,95,128,0.2);border:1px solid rgba(107,95,128,0.6);color:var(--text2);'
+    : 'background:transparent;border:1px solid var(--border2);color:var(--text3);opacity:.7;';
+  cont.innerHTML =
+    `<button class="tag-filter-pill" data-prftag="__notag__" style="${noTagSty}">◌ Sans tags</button>` +
+    tagsSorted().map(t => {
+      const c = getTagColor(t.color);
+      const st = profilTagFilterMap.get(t.id)||0;
+      let style='', label=esc(t.name);
+      if (st===1)       { style=`background:${c.bg};border:1px solid ${c.border};color:${c.text};`; label='✓ '+label; }
+      else if (st===-1) { style='background:rgba(220,50,50,.12);border:1px solid rgba(220,50,50,.4);color:#e07070;text-decoration:line-through;'; label='✕ '+label; }
+      else              { style=`background:transparent;border:1px solid ${c.border};color:${c.text};opacity:.6;`; }
+      return `<button class="tag-filter-pill" data-prftag="${t.id}" style="${style}">${label}</button>`;
+    }).join('');
   cont.querySelectorAll('[data-prftag]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const tid=btn.dataset.prftag, cur=profilTagFilterMap.get(tid)||0, nxt=cur===0?1:cur===1?-1:0;
-      nxt===0?profilTagFilterMap.delete(tid):profilTagFilterMap.set(tid,nxt);
+      const tid = btn.dataset.prftag;
+      if (tid === '__notag__') {
+        const s = profilTagFilterMap.get('__notag__') || 0;
+        s === 0 ? profilTagFilterMap.set('__notag__', 1) : profilTagFilterMap.delete('__notag__');
+      } else {
+        const cur=profilTagFilterMap.get(tid)||0, nxt=cur===0?1:cur===1?-1:0;
+        nxt===0?profilTagFilterMap.delete(tid):profilTagFilterMap.set(tid,nxt);
+      }
       renderProfilTagFilters(); renderProfils();
     });
   });
@@ -119,8 +131,12 @@ function getProfils() {
   if (filterProfilIncomplete) list = list.filter(isProfilIncomplete);
   // Filtre tags 3 états : 1=inclure, -1=exclure
   profilTagFilterMap.forEach((st, tid) => {
-    if (st===1)  list = list.filter(pr => { const p=prenoms.find(x=>x.id===pr.prenomId); return !!(p&&(p.tags||[]).includes(tid)); });
-    if (st===-1) list = list.filter(pr => { const p=prenoms.find(x=>x.id===pr.prenomId); return  !(p&&(p.tags||[]).includes(tid)); });
+    if (tid === '__notag__') {
+      if (st === 1) list = list.filter(pr => { const p=prenoms.find(x=>x.id===pr.prenomId); return !p||!(p.tags||[]).length; });
+    } else {
+      if (st===1)  list = list.filter(pr => { const p=prenoms.find(x=>x.id===pr.prenomId); return !!(p&&(p.tags||[]).includes(tid)); });
+      if (st===-1) list = list.filter(pr => { const p=prenoms.find(x=>x.id===pr.prenomId); return  !(p&&(p.tags||[]).includes(tid)); });
+    }
   });
   if (profilSort==='alpha') list.sort((a,b) => {
     const na = prenoms.find(x=>x.id===a.prenomId); const nb = prenoms.find(x=>x.id===b.prenomId);

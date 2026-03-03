@@ -186,6 +186,8 @@ async function fbPullAll() {
     fbSetLastSync(Date.now());
     fbSetSyncStatus('ok');
     console.log('[Firebase] Pull terminé ✓ (' + totalRemote + ' docs distants)');
+    // Charger les logs depuis le cloud après pull
+    if (typeof loadHistoryFromCloud === 'function') loadHistoryFromCloud();
   } catch(e) {
     fbSetSyncStatus('error');
     console.error('[Firebase] Pull erreur :', e);

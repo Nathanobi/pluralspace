@@ -18,11 +18,38 @@ function logHistory(action, type='system') {
   entries.unshift({ action, type, ts: Date.now() });
   if (entries.length > HISTORY_MAX) entries.splice(HISTORY_MAX);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  // Sync vers Firestore via IndexedDB (document unique 'history-log')
+  if (typeof dbPut === 'function') {
+    dbPut('settings', { key: 'history-log', entries }).catch(() => {});
+  }
 }
 
 function getHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
   catch { return []; }
+}
+
+// Charger les logs depuis Firestore si disponible (appelé après pull)
+async function loadHistoryFromCloud() {
+  if (typeof dbGet !== 'function') return;
+  try {
+    const stored = await dbGet('settings', 'history-log');
+    if (stored && stored.entries && stored.entries.length > 0) {
+      // Fusionner les logs cloud avec les logs locaux
+      const local  = getHistory();
+      const cloud  = stored.entries;
+      const merged = [...local, ...cloud];
+      // Dédupliquer par ts+action et trier par date décroissante
+      const seen = new Set();
+      const deduped = merged.filter(e => {
+        const key = `${e.ts}-${e.action}`;
+        if (seen.has(key)) return false;
+        seen.add(key); return true;
+      }).sort((a, b) => b.ts - a.ts).slice(0, HISTORY_MAX);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(deduped));
+      renderHistoryLog();
+    }
+  } catch(e) { /* silencieux */ }
 }
 
 function renderHistoryLog() {
@@ -35,11 +62,14 @@ function renderHistoryLog() {
   log.innerHTML = entries.map(e => {
     const c   = HISTORY_COLORS[e.type] || HISTORY_COLORS.system;
     const ago = formatAgo(e.ts);
+    const dt  = new Date(e.ts);
+    const dateStr = dt.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'});
+    const timeStr = dt.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
     return `<div class="history-entry">
       <div class="history-entry-dot" style="background:${c.dot};"></div>
       <div class="history-entry-body">
         <div class="history-entry-action">${esc(e.action)}</div>
-        <div class="history-entry-time">${ago} · <span style="color:${c.dot};">${c.label}</span></div>
+        <div class="history-entry-time">${ago} · ${dateStr} ${timeStr} · <span style="color:${c.dot};">${c.label}</span></div>
       </div>
     </div>`;
   }).join('');
