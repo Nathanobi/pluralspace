@@ -177,7 +177,19 @@ document.getElementById('proxy-prenom-input').addEventListener('input', function
   const q  = this.value.trim();
   const dd = document.getElementById('proxy-prenom-dropdown');
   if (!q) { dd.style.display='none'; return; }
-  const matches = prenoms.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())).slice(0,12);
+  const ql = q.toLowerCase();
+  const matches = prenoms
+    .filter(p => p.name.toLowerCase().includes(ql))
+    .sort((a, b) => {
+      const al = a.name.toLowerCase(), bl = b.name.toLowerCase();
+      // Exact en premier, puis début de mot, puis contient
+      if (al === ql && bl !== ql) return -1;
+      if (bl === ql && al !== ql) return  1;
+      if (al.startsWith(ql) && !bl.startsWith(ql)) return -1;
+      if (bl.startsWith(ql) && !al.startsWith(ql)) return  1;
+      return al.localeCompare(bl, 'fr');
+    })
+    .slice(0, 12);
   const exact   = prenoms.find(p=>p.name.toLowerCase()===q.toLowerCase());
   dd.style.display='';
   dd.innerHTML = matches.map(p => {
