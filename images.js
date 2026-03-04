@@ -42,7 +42,7 @@ function renderImgTagFilters() {
 
 function getFilteredImages() {
   let list = images.slice();
-  if (imgUnlinkedOnly) list = list.filter(img => !img.prenomId);
+  if (imgUnlinkedOnly) list = list.filter(img => !img.prenomId || !prenoms.find(x=>x.id===img.prenomId));
   if (imgSearch) {
     const q = imgSearch.toLowerCase();
     list = list.filter(img => {

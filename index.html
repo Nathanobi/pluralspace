@@ -727,18 +727,20 @@
         var links = [
           { icon: '⟡', name: 'PluralKit',           desc: 'Gérer votre système sur Discord',           web: 'https://pluralkit.me',       ios: 'https://pluralkit.me',       android: 'https://pluralkit.me' },
           { icon: '◉', name: 'PluralKit Dashboard',  desc: 'Interface web officielle PluralKit',        web: 'https://dash.pluralkit.me',  ios: 'https://dash.pluralkit.me',  android: 'https://dash.pluralkit.me' },
-          { icon: '✦', name: 'Pinterest',             desc: 'Trouver des images et références visuelles',web: 'https://www.pinterest.fr',   ios: 'pinterest://',               iosFallback: 'https://www.pinterest.fr', android: 'intent://pinterest.com#Intent;scheme=https;package=com.pinterest;end' },
+          { icon: '✦', name: 'Pinterest',             desc: 'Trouver des images et références visuelles',web: 'https://www.pinterest.fr',   ios: 'pinterest://',               iosFallback: 'https://www.pinterest.fr', android: 'pinterest://', androidFallback: 'https://www.pinterest.fr' },
           { icon: '✧', name: 'imgbb',                 desc: 'Héberger une image pour obtenir une URL',   web: 'https://imgbb.com',          ios: 'https://imgbb.com',          android: 'https://imgbb.com' },
-          { icon: '◈', name: 'Discord',               desc: 'Essayer vos proxys en conditions réelles',  web: 'https://discord.com',        ios: 'discord://',                 iosFallback: 'https://apps.apple.com/app/discord/id985746746', android: 'intent://discord.com#Intent;scheme=https;package=com.discord;end' }
+          { icon: '◈', name: 'Discord',               desc: 'Essayer vos proxys en conditions réelles',  web: 'https://discord.com',        ios: 'discord://',                 iosFallback: 'https://apps.apple.com/app/discord/id985746746', android: 'discord://', androidFallback: 'https://discord.com' }
         ];
         var grid = document.getElementById('useful-links-grid');
         grid.innerHTML = links.map(function(l) {
           var href = l.web;
           if (isIOS && l.ios)         href = l.ios;
           if (isAndroid && l.android) href = l.android;
-          var hasApp = (isIOS && l.ios && l.ios !== l.web) || (isAndroid && l.android && l.android.indexOf('intent://') === 0);
+          var hasApp = (isIOS && l.ios && l.ios !== l.web) || (isAndroid && l.android && l.android !== l.web && l.android.indexOf('http') !== 0);
           var badge  = hasApp ? '<span style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--accent2);border:1px solid rgba(167,139,250,0.3);border-radius:4px;padding:1px 5px;margin-left:6px;">App</span>' : '';
-          var fb     = (l.iosFallback && isIOS) ? ' data-fallback="' + l.iosFallback + '"' : '';
+          var fb = '';
+          if (l.iosFallback && isIOS) fb = ' data-fallback="' + l.iosFallback + '"';
+          if (l.androidFallback && isAndroid) fb = ' data-fallback="' + l.androidFallback + '"';
           return '<a class="useful-link-card" href="' + href + '"' + fb + ' target="_blank" rel="noopener">'
                + '<div class="useful-link-icon">' + l.icon + '</div>'
                + '<div class="useful-link-body">'
@@ -906,6 +908,7 @@
         <button class="sort-btn" data-profil-sort="chrono">Plus récent</button>
         <div class="toolbar-sep"></div>
         <button class="sort-btn filter-btn" id="filter-profil-incomplete" data-profil-filter="incomplete">◌ Incomplets</button>
+        <button class="sort-btn filter-btn" id="filter-profil-horspk" data-profil-filter="horspk">◌ Hors PK</button>
       </div>
       <div class="tag-filter-row" id="profil-tag-filter-row">
         <span class="tag-filter-label">Tags :</span>
@@ -1563,6 +1566,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
   <script src="db.js" defer></script>
 <script src="utils.js" defer></script>

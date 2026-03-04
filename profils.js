@@ -1,6 +1,6 @@
 // ── PROFILS ──
 let profilSort = 'alpha', profilSearch = '';
-let filterProfilIncomplete = false;
+let filterProfilIncomplete = false, filterHorsPK = false;
 let profilTagFilterMap = new Map();
 let editingProfilId = null, selectedPrenomForProfil = null;
 
@@ -129,6 +129,7 @@ function getProfils() {
     });
   }
   if (filterProfilIncomplete) list = list.filter(isProfilIncomplete);
+  if (filterHorsPK) list = list.filter(pr => !pr.pkMemberId);
   // Filtre tags 3 états : 1=inclure, -1=exclure
   profilTagFilterMap.forEach((st, tid) => {
     if (tid === '__notag__') {
@@ -158,6 +159,11 @@ document.getElementById('profil-search').addEventListener('input', e => { profil
 document.getElementById('filter-profil-incomplete').addEventListener('click', (e) => {
   filterProfilIncomplete = !filterProfilIncomplete;
   e.currentTarget.classList.toggle('active', filterProfilIncomplete);
+  renderProfils();
+});
+document.getElementById('filter-profil-horspk').addEventListener('click', (e) => {
+  filterHorsPK = !filterHorsPK;
+  e.currentTarget.classList.toggle('active', filterHorsPK);
   renderProfils();
 });
 

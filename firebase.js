@@ -17,6 +17,7 @@ let fbApp      = null;
 let fbAuth     = null;
 let fbDb       = null;
 let fbUser     = null;          // utilisatrice connectée
+let fbStorage  = null;
 // listeners temps réel désactivés — sync via push auto uniquement
 let fbSyncDebounce = {};        // debounce par collection
 
@@ -29,9 +30,10 @@ const SYNC_DEBOUNCE_MS = 800;
 // ── INIT SDK (chargé via CDN dans index.html) ──
 async function fbInit() {
   try {
-    fbApp  = firebase.initializeApp(FIREBASE_CONFIG);
-    fbAuth = firebase.auth();
-    fbDb   = firebase.firestore();
+    fbApp     = firebase.initializeApp(FIREBASE_CONFIG);
+    fbAuth    = firebase.auth();
+    fbDb      = firebase.firestore();
+    fbStorage = firebase.storage();
     // Activer la persistence offline (fonctionne hors ligne)
     console.log('[Firebase] Initialisé ✓');
     // Gérer le retour après signInWithRedirect (PWA iOS)
@@ -196,6 +198,23 @@ async function fbPullAll() {
 }
 
 // Nettoyer un item avant envoi Firestore (retirer les dataUrl trop lourds, limite 1MB)
+// Upload image vers Firebase Storage → retourne l'URL de téléchargement
+async function fbUploadImage(img) {
+  if (!fbStorage || !fbUser || !img.dataUrl) return null;
+  try {
+    const base64 = img.dataUrl.split(',')[1];
+    const mime   = img.dataUrl.split(';')[0].split(':')[1] || 'image/png';
+    const ext    = mime.split('/')[1] || 'png';
+    const path   = 'users/' + fbUser.uid + '/images/' + img.id + '.' + ext;
+    const ref    = fbStorage.ref(path);
+    await ref.putString(base64, 'base64', { contentType: mime });
+    return await ref.getDownloadURL();
+  } catch(e) {
+    console.warn('[Firebase Storage] Upload échoué :', e.message);
+    return null;
+  }
+}
+
 function fbSanitize(collection, item) {
   if (collection !== 'images') return item;
   const doc = Object.assign({}, item);
@@ -208,10 +227,21 @@ function fbSanitize(collection, item) {
 async function fbPushDoc(collection, item) {
   if (!fbUser || !fbDb || !item?.id) return;
   try {
+    // Pour les images : uploader vers Firebase Storage si pas encore de hostedUrl
+    if (collection === 'images' && item.dataUrl && !item.hostedUrl) {
+      const url = await fbUploadImage(item);
+      if (url) {
+        item.hostedUrl = url;
+        await new Promise((res,rej) => {
+          const r = db.transaction('images','readwrite').objectStore('images').put(item);
+          r.onsuccess = () => res(); r.onerror = rej;
+        });
+      }
+    }
     const doc = fbSanitize(collection, item);
     await fbColRef(collection).doc(doc.id).set(doc);
   } catch(e) {
-    console.error(`[Firebase] Push ${collection}/${item.id} :`, e);
+    console.error('[Firebase] Push ' + collection + '/' + item.id + ' :', e);
     fbSetSyncStatus('error');
   }
 }
@@ -302,35 +332,25 @@ async function fbPushAll() {
     } catch(e) { /* quota ou réseau — on se fie à lastSync */ }
     const isFirst = lastSync === 0 || firestoreEmpty;
 
-    // ── Étape 1 : uploader sur imgbb les images sans hostedUrl ──
-    const imgbbKey = localStorage.getItem('ps-imgbb-key') || '';
-    if (imgbbKey) {
-      const allImages = await dbGetAll('images');
-      const toUpload  = allImages.filter(img => img.dataUrl && !img.hostedUrl);
-      if (toUpload.length > 0) {
-        toast(`Upload de ${toUpload.length} image(s) sur imgbb…`, 'info');
-        let uploaded = 0;
-        for (const img of toUpload) {
-          try {
-            const base64 = img.dataUrl.split(',')[1];
-            const fd = new FormData();
-            fd.append('image', base64);
-            const resp = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method:'POST', body:fd });
-            const json = await resp.json();
-            if (json.success) {
-              img.hostedUrl = json.data.url;
-              // Sauvegarder sans déclencher la sync auto (pour éviter boucle)
-              await new Promise((res,rej) => {
-                const r = db.transaction('images','readwrite').objectStore('images').put(img);
-                r.onsuccess = () => res(); r.onerror = rej;
-              });
-              uploaded++;
-            }
-          } catch(e) { console.warn('[Firebase] imgbb:', e.message); }
-          await new Promise(r => setTimeout(r, 200));
+    // ── Étape 1 : uploader vers Firebase Storage les images sans hostedUrl ──
+    const allImages0 = await dbGetAll('images');
+    const toUpload   = allImages0.filter(img => img.dataUrl && !img.hostedUrl);
+    if (toUpload.length > 0) {
+      toast('Upload de ' + toUpload.length + ' image(s)…', 'info');
+      let uploaded = 0;
+      for (const img of toUpload) {
+        const url = await fbUploadImage(img);
+        if (url) {
+          img.hostedUrl = url;
+          await new Promise((res,rej) => {
+            const r = db.transaction('images','readwrite').objectStore('images').put(img);
+            r.onsuccess = () => res(); r.onerror = rej;
+          });
+          uploaded++;
         }
-        console.log(`[Firebase] imgbb : ${uploaded}/${toUpload.length} uploadées`);
+        await new Promise(r => setTimeout(r, 100));
       }
+      console.log('[Firebase Storage] ' + uploaded + '/' + toUpload.length + ' uploadées');
     }
 
     // ── Étape 2 : push Firestore — uniquement les docs modifiés depuis lastSync ──
