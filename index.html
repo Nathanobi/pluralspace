@@ -3,6 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <style>
+    /* Forcer portrait : afficher un message si l'utilisateur tourne son écran */
+    @media screen and (orientation: landscape) and (max-height: 500px) {
+      #landscape-block {
+        display: flex !important;
+      }
+      #app { display: none !important; }
+    }
+  </style>
   <meta name="theme-color" content="#1a1625" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -422,7 +431,7 @@
       /* ── NAV → barre fixe en bas ── */
       nav {
         width: 100% !important;
-        height: calc(60px + env(safe-area-inset-bottom));
+        height: calc(52px + env(safe-area-inset-bottom));
         flex-direction: row;
         padding: 0;
         border-right: none;
@@ -449,8 +458,8 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        padding: 6px 4px;
-        gap: 3px;
+        padding: 4px 4px;
+        gap: 2px;
         border-radius: 0;
         border: none !important;
         font-size: 10px;
@@ -458,7 +467,7 @@
         white-space: nowrap;
         position: relative;
       }
-      .nav-link .icon { font-size: 20px; width: auto; }
+      .nav-link .icon { font-size: 18px; width: auto; }
       .nav-link .label { display: block !important; font-size: 9px; color: var(--text3); }
       .nav-link.active .label { color: var(--accent2); }
       .nav-link.active { background: transparent; color: var(--accent2); }
@@ -485,7 +494,7 @@
       main {
         flex: 1;
         padding-top: env(safe-area-inset-top);
-        padding-bottom: calc(60px + env(safe-area-inset-bottom));
+        padding-bottom: calc(52px + env(safe-area-inset-bottom));
         overflow-y: auto;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
@@ -568,7 +577,7 @@
       /* ── MODAUX : s'ouvrent par le bas, au-dessus de la nav ── */
       .modal-overlay {
         padding: 0;
-        padding-bottom: calc(60px + env(safe-area-inset-bottom));
+        padding-bottom: calc(52px + env(safe-area-inset-bottom));
         align-items: flex-end;
         /* iOS : backdrop-filter cause des bugs de tap */
         backdrop-filter: none;
@@ -578,7 +587,7 @@
         border-radius: var(--radius) var(--radius) 0 0 !important;
         max-width: 100% !important;
         width: 100%;
-        max-height: calc(100vh - 60px - env(safe-area-inset-bottom));
+        max-height: calc(100vh - 52px - env(safe-area-inset-bottom));
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         animation: modalUp 0.25s cubic-bezier(.4,0,.2,1);
@@ -591,7 +600,7 @@
       /* Modal proxy : empilement vertical */
       #modal-proxy .modal {
         flex-direction: column !important;
-        max-height: calc(100vh - 60px - env(safe-area-inset-bottom));
+        max-height: calc(100vh - 52px - env(safe-area-inset-bottom));
         overflow: hidden;
       }
       #modal-proxy .modal > div:first-child {
@@ -627,7 +636,7 @@
 
       /* ── TOAST : au-dessus de la nav ── */
       #toast-container {
-        bottom: calc(70px + env(safe-area-inset-bottom));
+        bottom: calc(62px + env(safe-area-inset-bottom));
         right: 12px; left: 12px;
       }
       .toast { min-width: 0; width: 100%; }
@@ -674,6 +683,11 @@
 </head>
 <body>
 
+<div id="landscape-block" style="display:none;position:fixed;inset:0;background:var(--bg1);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--text2);font-family:var(--font-sans);">
+  <div style="font-size:48px;">⟳</div>
+  <div style="font-size:16px;font-weight:500;">Veuillez tourner votre téléphone</div>
+  <div style="font-size:13px;color:var(--text3);">Cette application est optimisée en portrait</div>
+</div>
 <div id="app">
   <nav id="main-nav">
     <div class="nav-logo">
@@ -703,6 +717,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.25</button>
       </div>
 
       <!-- Statistiques -->
@@ -733,15 +748,16 @@
         ];
         var grid = document.getElementById('useful-links-grid');
         grid.innerHTML = links.map(function(l) {
+          // Sur mobile : utiliser le scheme de l'app (discord://, pinterest://)
+          // Le navigateur tente d'ouvrir l'app ; si elle n'est pas installée, rien ne se passe
+          // On ajoute un lien web séparé en fallback visible
           var href = l.web;
           if (isIOS && l.ios)         href = l.ios;
           if (isAndroid && l.android) href = l.android;
-          var hasApp = (isIOS && l.ios && l.ios !== l.web) || (isAndroid && l.android && l.android !== l.web && l.android.indexOf('http') !== 0);
+          var hasApp = (isIOS && l.ios && l.ios !== l.web) || (isAndroid && l.android && l.android !== l.web);
           var badge  = hasApp ? '<span style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--accent2);border:1px solid rgba(167,139,250,0.3);border-radius:4px;padding:1px 5px;margin-left:6px;">App</span>' : '';
-          var fb = '';
-          if (l.iosFallback && isIOS) fb = ' data-fallback="' + l.iosFallback + '"';
-          if (l.androidFallback && isAndroid) fb = ' data-fallback="' + l.androidFallback + '"';
-          return '<a class="useful-link-card" href="' + href + '"' + fb + ' target="_blank" rel="noopener">'
+          // Pas de data-fallback ni de JS supplémentaire : le href suffit
+          return '<a class="useful-link-card" href="' + href + '" target="_blank" rel="noopener">'
                + '<div class="useful-link-icon">' + l.icon + '</div>'
                + '<div class="useful-link-body">'
                + '<div class="useful-link-name">' + l.name + badge + '</div>'
@@ -750,12 +766,16 @@
                + '<div class="useful-link-arrow">↗</div>'
                + '</a>';
         }).join('');
-        grid.querySelectorAll('[data-fallback]').forEach(function(a) {
-          a.addEventListener('click', function() {
-            setTimeout(function() { window.open(a.dataset.fallback, '_blank'); }, 1500);
-          });
-        });
+        // Pas de fallback JS — le scheme natif suffit (discord://, pinterest://)
       })();
+      </script>
+      <script>
+      // Verrouiller orientation portrait si l'API est disponible
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('portrait').catch(function() {
+          // API non supportée ou refusée — le CSS media query prend le relais
+        });
+      }
       </script>
 
 
@@ -1578,5 +1598,94 @@
 <script src="config.js" defer></script>
 <script src="firebase.js" defer></script>
   <script src="app.js" defer></script>
+
+  <script>
+  // ── VÉRIFICATION DE MISE À JOUR ──
+  const APP_VERSION = '1.25';
+
+  document.getElementById('btn-version-check').addEventListener('click', async function() {
+    const btn = this;
+    btn.textContent = '⟳ Vérification…';
+    btn.style.pointerEvents = 'none';
+
+    try {
+      if (!('serviceWorker' in navigator)) {
+        btn.textContent = 'v' + APP_VERSION;
+        btn.style.pointerEvents = '';
+        toast('Service Worker non disponible.', 'info');
+        return;
+      }
+
+      // Forcer la vérification d'une nouvelle version du SW
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.update();
+        // Attendre un peu pour que le SW vérifie le réseau
+        await new Promise(r => setTimeout(r, 1500));
+
+        if (reg.waiting) {
+          // Nouveau SW en attente → proposer la mise à jour
+          btn.textContent = '↑ Mise à jour dispo';
+          btn.style.borderColor = 'var(--accent)';
+          btn.style.color = 'var(--accent2)';
+          btn.style.pointerEvents = '';
+          btn.onclick = function() {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            toast('Mise à jour en cours… l\'app va se recharger.', 'success');
+            setTimeout(() => window.location.reload(), 1500);
+          };
+        } else {
+          btn.textContent = 'v' + APP_VERSION + ' ✓';
+          btn.style.pointerEvents = '';
+          setTimeout(() => { btn.textContent = 'v' + APP_VERSION; }, 2500);
+          toast('L\'application est à jour ✓', 'success');
+        }
+      }
+    } catch(e) {
+      btn.textContent = 'v' + APP_VERSION;
+      btn.style.pointerEvents = '';
+      toast('Impossible de vérifier la mise à jour.', 'error');
+    }
+  });
+
+  // Écouter les messages du SW (nouveau SW installé en arrière-plan)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // Le SW a changé (SKIP_WAITING a été appelé) → recharger
+      window.location.reload();
+    });
+
+    // Détection passive : si un SW en attente existe déjà au chargement
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (reg && reg.waiting) {
+        const btn = document.getElementById('btn-version-check');
+        if (btn) {
+          btn.textContent = '↑ MAJ dispo';
+          btn.style.borderColor = 'var(--accent)';
+          btn.style.color = 'var(--accent2)';
+        }
+      }
+      // Observer les futures installations
+      if (reg) {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                const btn = document.getElementById('btn-version-check');
+                if (btn) {
+                  btn.textContent = '↑ MAJ dispo';
+                  btn.style.borderColor = 'var(--accent)';
+                  btn.style.color = 'var(--accent2)';
+                }
+                toast('Mise à jour disponible — cliquez sur le badge de version pour l\'installer.', 'info');
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+  </script>
 </body>
 </html>

@@ -34,7 +34,10 @@ async function fbInit() {
     fbAuth    = firebase.auth();
     fbDb      = firebase.firestore();
     fbStorage = firebase.storage();
-    // Activer la persistence offline (fonctionne hors ligne)
+    // Persistence LOCAL : indispensable pour iOS PWA (auth survit au redirect)
+    try {
+      await fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    } catch(e) { console.warn('[Firebase] setPersistence :', e.code); }
     console.log('[Firebase] Initialisé ✓');
     // Gérer le retour après signInWithRedirect (PWA iOS)
     // On attend le résultat avant de démarrer le watcher d'auth
@@ -44,7 +47,10 @@ async function fbInit() {
         console.log('[Firebase] Retour redirect OK :', result.user.email);
       }
     } catch(e) {
-      console.warn('[Firebase] getRedirectResult :', e.code);
+      // auth/no-auth-event = pas de redirect en cours, c'est normal
+      if (e.code !== 'auth/no-auth-event') {
+        console.warn('[Firebase] getRedirectResult :', e.code);
+      }
     }
     fbWatchAuthState();
   } catch(e) {

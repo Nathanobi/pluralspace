@@ -2,7 +2,7 @@
 // Stratégie : Cache First pour les assets statiques,
 //             Network First pour les requêtes réseau (API PK, imgbb)
 
-const VERSION   = 'plural-space-v25';
+const VERSION   = 'plural-space-v26';
 const CACHE_STATIC = `${VERSION}-static`;
 
 // Assets à précacher — toute l'app shell
@@ -87,6 +87,13 @@ self.addEventListener('fetch', event => {
 // ── MESSAGE : forcer la mise à jour depuis l'app ──
 self.addEventListener('message', event => {
   if (event.data === 'skipWaiting') {
+    self.skipWaiting();
+  }
+});
+
+// Permettre à la page de forcer l'activation d'un nouveau SW
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
