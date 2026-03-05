@@ -607,9 +607,18 @@
       }
       #modal-proxy #proxy-side-panel {
         width: 100% !important;
-        max-height: 260px !important;
-        overflow-y: auto !important;
+        max-height: 300px !important;
+        overflow: hidden !important;
         flex-shrink: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      /* La liste interne est la seule partie scrollable */
+      #modal-proxy #proxy-side-list {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        min-height: 0 !important;
+        max-height: 180px !important;
       }
 
       /* Modal crop */
@@ -713,7 +722,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.32</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.33</button>
       </div>
 
       <!-- Statistiques -->
@@ -1596,7 +1605,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.32';
+  const APP_VERSION = '1.33';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {
