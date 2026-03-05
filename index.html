@@ -590,7 +590,7 @@
         to   { transform: translateY(0);    opacity: 1; }
       }
 
-      /* Modal proxy : cacher le panneau latéral sur mobile, garder seulement le formulaire */
+      /* Modal proxy : empilement vertical sur mobile */
       #modal-proxy .modal {
         flex-direction: column !important;
         max-height: calc(100vh - 52px - env(safe-area-inset-bottom));
@@ -599,13 +599,19 @@
       }
       #modal-proxy .modal > div:first-child {
         border-right: none !important;
-        border-bottom: none;
-        max-height: none;
+        border-bottom: 1px solid var(--border2);
         overflow-y: visible;
-        flex: 1;
+        flex-shrink: 0;
       }
-      /* Cacher le panneau latéral (liste des prénoms avec proxy) sur mobile */
-      #modal-proxy .modal > div:last-child { display: none !important; }
+      /* Panneau latéral en dessous, hauteur limitée */
+      #modal-proxy .modal > div:last-child {
+        display: flex !important;
+        flex-direction: column;
+        max-height: 280px;
+        overflow-y: auto;
+        width: 100% !important;
+        flex-shrink: 0;
+      }
 
       /* Modal crop */
       #modal-crop .modal { padding: 16px; }
@@ -708,7 +714,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.29</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.30</button>
       </div>
 
       <!-- Statistiques -->
@@ -1591,9 +1597,11 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.29';
+  const APP_VERSION = '1.30';
+  let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {
+    pendingUpdateReg = reg; // mémoriser
     const btn = document.getElementById('btn-version-check');
     if (!btn) return;
     btn.textContent = '↑ MAJ disponible';
@@ -1604,8 +1612,15 @@
     btn.onclick = function(e) {
       e.stopImmediatePropagation();
       if (!confirm('Une mise à jour est disponible.\nRecharger l\'application maintenant ?')) return;
-      // Envoyer skipWaiting puis recharger manuellement
-      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      // Utiliser reg.waiting ou forcer le rechargement si le SW est déjà actif
+      const target = reg.waiting || (pendingUpdateReg && pendingUpdateReg.waiting);
+      if (target) {
+        target.postMessage({ type: 'SKIP_WAITING' });
+      } else {
+        // Le nouveau SW est peut-être déjà actif — recharger directement
+        window.location.reload();
+        return;
+      }
       toast('Mise à jour en cours…', 'success');
       // Recharger après que le nouveau SW soit actif
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -1624,6 +1639,13 @@
         btn.textContent = 'v' + APP_VERSION;
         btn.style.pointerEvents = '';
         toast('Service Worker non disponible.', 'info');
+        return;
+      }
+
+      // Si une MAJ était déjà détectée lors d'une vérification précédente
+      if (pendingUpdateReg) {
+        showUpdateAvailable(pendingUpdateReg);
+        btn.style.pointerEvents = '';
         return;
       }
 
