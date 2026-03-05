@@ -324,15 +324,11 @@ document.getElementById('profil-prenom-input').addEventListener('input', functio
   const exact   = prenoms.find(p=>p.name.toLowerCase()===q.toLowerCase());
   dd.style.display='';
   dd.innerHTML = matches.map(p => {
-    const pxCount = proxys.filter(px => px.prenomId === p.id).length;
     const hasProfil = profils.some(pr => pr.prenomId === p.id);
-    const badge = pxCount > 0
-      ? `<span class="already-has">${pxCount} proxy${pxCount > 1 ? 's' : ''}</span>`
-      : '';
     const profilBadge = hasProfil
-      ? `<span class="already-has" style="color:var(--accent2);">a déjà un profil</span>`
+      ? `<span class="already-has">a déjà un profil</span>`
       : '';
-    return `<div class="prenom-dropdown-item" data-profil-pick="${p.id}"><span>${esc(p.name)}</span>${badge}${profilBadge}</div>`;
+    return `<div class="prenom-dropdown-item" data-profil-pick="${p.id}"><span>${esc(p.name)}</span>${profilBadge}</div>`;
   }).join('')
     + (!exact?`<div class="prenom-dropdown-item" data-profil-create="${esc(q)}" style="color:var(--accent2);border-top:1px solid var(--border2);"><span>✦ Créer "${esc(q)}"</span></div>`:'');
   dd.querySelectorAll('[data-profil-pick]').forEach(item => {

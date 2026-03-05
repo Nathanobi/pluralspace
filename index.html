@@ -569,6 +569,7 @@
       /* ── MODAUX : s'ouvrent par le bas, au-dessus de la nav ── */
       .modal-overlay {
         padding: 0;
+        padding-top: max(env(safe-area-inset-top), 12px);
         padding-bottom: calc(52px + env(safe-area-inset-bottom));
         align-items: flex-end;
         /* iOS : backdrop-filter cause des bugs de tap */
@@ -717,7 +718,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.27</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.28</button>
       </div>
 
       <!-- Statistiques -->
@@ -1600,7 +1601,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.27';
+  const APP_VERSION = '1.28';
 
   document.getElementById('btn-version-check').addEventListener('click', async function() {
     const btn = this;
@@ -1629,6 +1630,7 @@
           btn.style.color = 'var(--accent2)';
           btn.style.pointerEvents = '';
           btn.onclick = function() {
+            if (!confirm('Une mise à jour est disponible. Recharger l\'application maintenant ?')) return;
             reg.waiting.postMessage({ type: 'SKIP_WAITING' });
             toast('Mise à jour en cours… l\'app va se recharger.', 'success');
             setTimeout(() => window.location.reload(), 1500);
@@ -1649,10 +1651,8 @@
 
   // Écouter les messages du SW (nouveau SW installé en arrière-plan)
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      // Le SW a changé (SKIP_WAITING a été appelé) → recharger
-      window.location.reload();
-    });
+    // Ne PAS recharger automatiquement sur controllerchange
+    // Le rechargement est déclenché manuellement par l'utilisateur via le badge
 
     // Détection passive : si un SW en attente existe déjà au chargement
     navigator.serviceWorker.getRegistration().then(reg => {
