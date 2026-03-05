@@ -405,8 +405,8 @@
       .stats-grid    { grid-template-columns: repeat(2, 1fr); }
       /* Modal proxy : empiler panneau principal + side panel */
       #modal-proxy .modal { flex-direction: column; max-width: 98vw !important; }
-      #modal-proxy #proxy-form-panel { border-right: none !important; border-bottom: 1px solid var(--border2); max-height: none !important; }
-      #modal-proxy #proxy-side-panel { max-height: 220px !important; overflow-y: auto; }
+      #modal-proxy #proxy-form-panel { border-right: none !important; max-height: none !important; }
+      #modal-proxy #proxy-side-panel { display: none !important; }
     }
 
     /* ═══════════════════════════════════════════
@@ -590,7 +590,7 @@
         to   { transform: translateY(0);    opacity: 1; }
       }
 
-      /* Modal proxy : empilement vertical sur mobile */
+      /* Modal proxy : plein écran vertical sur mobile */
       #modal-proxy .modal {
         flex-direction: column !important;
         overflow-y: auto !important;
@@ -599,27 +599,13 @@
       }
       #modal-proxy #proxy-form-panel {
         border-right: none !important;
-        border-bottom: 1px solid var(--border2) !important;
         width: 100% !important;
         max-height: none !important;
         overflow-y: visible !important;
         flex-shrink: 0 !important;
       }
-      #modal-proxy #proxy-side-panel {
-        width: 100% !important;
-        max-height: 300px !important;
-        overflow: hidden !important;
-        flex-shrink: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-      }
-      /* La liste interne est la seule partie scrollable */
-      #modal-proxy #proxy-side-list {
-        flex: 1 !important;
-        overflow-y: auto !important;
-        min-height: 0 !important;
-        max-height: 180px !important;
-      }
+      /* Panneau latéral caché sur mobile — remplacé par un bouton dédié */
+      #modal-proxy #proxy-side-panel { display: none !important; }
 
       /* Modal crop */
       #modal-crop .modal { padding: 16px; }
@@ -722,7 +708,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.33</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.34</button>
       </div>
 
       <!-- Statistiques -->
@@ -1562,6 +1548,9 @@
           <button class="btn btn-ghost btn-sm" id="btn-proxy-edit-existing">✎ Modifier ce proxy</button>
         </div>
       </div>
+      <div style="margin-bottom:12px;">
+        <button class="btn btn-ghost btn-sm" id="btn-show-proxy-side" style="width:100%;justify-content:center;color:var(--text3);font-size:12px;">◈ Voir les prénoms avec proxy</button>
+      </div>
       <div class="modal-footer"><button class="btn btn-ghost" id="modal-proxy-cancel">Annuler</button><button class="btn btn-primary" id="modal-proxy-save">Enregistrer</button></div>
     </div>
     <!-- Panneau latéral -->
@@ -1577,6 +1566,20 @@
       </div>
       <div id="proxy-side-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
     </div>
+  </div>
+</div>
+
+<!-- MODAL PRÉNOMS AVEC PROXY (mobile) -->
+<div class="modal-overlay" id="modal-proxy-side" style="z-index:200;display:none;">
+  <div class="modal" style="max-width:500px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 52px - env(safe-area-inset-bottom));">
+    <div class="modal-header" style="padding:18px 20px 14px;flex-shrink:0;">
+      <div class="modal-title">Prénoms avec proxy</div>
+      <button class="modal-close" id="modal-proxy-side-close">✕</button>
+    </div>
+    <div style="padding:0 20px 12px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;">
+      <input type="text" class="input" id="proxy-side-search2" placeholder="🔍 Filtrer…" style="font-size:13px;" />
+    </div>
+    <div id="proxy-side-list2" style="flex:1;overflow-y:auto;padding:0 20px 20px;display:flex;flex-direction:column;gap:6px;"></div>
   </div>
 </div>
 
@@ -1605,7 +1608,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.33';
+  const APP_VERSION = '1.34';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {

@@ -398,6 +398,64 @@ async function saveProxy() {
 
 document.getElementById('modal-proxy-close').addEventListener('click',  closeProxyModal);
 document.getElementById('modal-proxy-cancel').addEventListener('click', closeProxyModal);
+
+// Bouton "Voir les prénoms avec proxy" (mobile)
+document.getElementById('btn-show-proxy-side').addEventListener('click', () => {
+  // Remplir la liste du modal side avec les mêmes données que le panneau latéral
+  const search = '';
+  const list2  = document.getElementById('proxy-side-list2');
+  renderProxySideList2(search);
+  document.getElementById('modal-proxy-side').style.display = 'flex';
+  document.getElementById('proxy-side-search2').value = '';
+  document.getElementById('proxy-side-search2').focus();
+});
+
+document.getElementById('modal-proxy-side-close').addEventListener('click', () => {
+  document.getElementById('modal-proxy-side').style.display = 'none';
+});
+
+document.getElementById('proxy-side-search2').addEventListener('input', function() {
+  renderProxySideList2(this.value.trim());
+});
+
+function renderProxySideList2(search) {
+  const list2 = document.getElementById('proxy-side-list2');
+  // Réutiliser les mêmes données que renderProxySideList()
+  let items = prenoms.filter(p => proxys.some(px => px.prenomId === p.id));
+  if (search) {
+    const q = search.toLowerCase();
+    items = items.filter(p => {
+      const pxList = proxys.filter(px => px.prenomId === p.id);
+      return p.name.toLowerCase().includes(q) || pxList.some(px => (px.prefix+px.suffix).toLowerCase().includes(q));
+    });
+  }
+  items.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  if (!items.length) {
+    list2.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px;">Aucun résultat</div>';
+    return;
+  }
+  list2.innerHTML = items.map(p => {
+    const pxList = proxys.filter(px => px.prenomId === p.id);
+    const tagsHtml = (p.tags||[]).map(tid => { const t = tags.find(x=>x.id===tid); return t ? tagPillHtml(t) : ''; }).join('');
+    return `<div class="proxy-row-entry" style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 14px;cursor:pointer;" data-side2-pick="${p.id}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-family:'Cormorant Garamond',serif;font-size:17px;color:var(--text);">${esc(p.name)}</span>
+        ${tagsHtml}
+      </div>
+      ${pxList.map(px => `<span class="preview-bubble" style="font-size:12px;padding:2px 8px;margin-right:4px;"><span style="color:var(--accent3);">${esc(px.prefix||'')}</span>text<span style="color:var(--accent3);">${esc(px.suffix||'')}</span></span>`).join('')}
+    </div>`;
+  }).join('');
+  // Clic sur un prénom → le sélectionner dans le formulaire et fermer
+  list2.querySelectorAll('[data-side2-pick]').forEach(el => {
+    el.addEventListener('click', () => {
+      const p = prenoms.find(x => x.id === el.dataset.side2Pick);
+      if (p) {
+        selectPrenomForProxy(p);
+        document.getElementById('modal-proxy-side').style.display = 'none';
+      }
+    });
+  });
+}
 document.getElementById('btn-add-proxy').addEventListener('click',      () => openProxyModal());
 document.getElementById('modal-proxy-save').addEventListener('click',   saveProxy);
 
