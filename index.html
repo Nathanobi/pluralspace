@@ -590,32 +590,22 @@
         to   { transform: translateY(0);    opacity: 1; }
       }
 
-      /* Modal proxy : empilement vertical */
+      /* Modal proxy : cacher le panneau latéral sur mobile, garder seulement le formulaire */
       #modal-proxy .modal {
         flex-direction: column !important;
         max-height: calc(100vh - 52px - env(safe-area-inset-bottom));
-        overflow: hidden;
+        overflow-y: auto;
         display: flex;
       }
       #modal-proxy .modal > div:first-child {
         border-right: none !important;
-        border-bottom: 1px solid var(--border2);
-        max-height: 62%;
-        overflow-y: auto;
-        /* Header sticky dans le scroll */
-        padding-top: 0 !important;
+        border-bottom: none;
+        max-height: none;
+        overflow-y: visible;
+        flex: 1;
       }
-      #modal-proxy .modal > div:first-child .modal-header {
-        position: sticky;
-        top: 0;
-        background: var(--bg2);
-        z-index: 2;
-        padding: 18px 20px 12px;
-        margin: 0 -20px;
-        padding-left: 20px;
-        padding-right: 20px;
-      }
-      #modal-proxy .modal > div:last-child { overflow-y: auto; flex: 1; }
+      /* Cacher le panneau latéral (liste des prénoms avec proxy) sur mobile */
+      #modal-proxy .modal > div:last-child { display: none !important; }
 
       /* Modal crop */
       #modal-crop .modal { padding: 16px; }
@@ -718,7 +708,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.28</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.29</button>
       </div>
 
       <!-- Statistiques -->
@@ -1601,7 +1591,28 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.28';
+  const APP_VERSION = '1.29';
+
+  function showUpdateAvailable(reg) {
+    const btn = document.getElementById('btn-version-check');
+    if (!btn) return;
+    btn.textContent = '↑ MAJ disponible';
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent2)';
+    btn.style.pointerEvents = '';
+    // Remplacer le onclick pour proposer (pas forcer) la mise à jour
+    btn.onclick = function(e) {
+      e.stopImmediatePropagation();
+      if (!confirm('Une mise à jour est disponible.\nRecharger l\'application maintenant ?')) return;
+      // Envoyer skipWaiting puis recharger manuellement
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      toast('Mise à jour en cours…', 'success');
+      // Recharger après que le nouveau SW soit actif
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      }, { once: true });
+    };
+  }
 
   document.getElementById('btn-version-check').addEventListener('click', async function() {
     const btn = this;
@@ -1619,27 +1630,44 @@
       // Forcer la vérification d'une nouvelle version du SW
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg) {
-        await reg.update();
-        // Attendre un peu pour que le SW vérifie le réseau
-        await new Promise(r => setTimeout(r, 1500));
-
+        // Vérifier d'abord si un SW en attente existe déjà (sans déclencher update)
         if (reg.waiting) {
-          // Nouveau SW en attente → proposer la mise à jour
-          btn.textContent = '↑ Mise à jour dispo';
-          btn.style.borderColor = 'var(--accent)';
-          btn.style.color = 'var(--accent2)';
+          showUpdateAvailable(reg);
           btn.style.pointerEvents = '';
-          btn.onclick = function() {
-            if (!confirm('Une mise à jour est disponible. Recharger l\'application maintenant ?')) return;
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-            toast('Mise à jour en cours… l\'app va se recharger.', 'success');
-            setTimeout(() => window.location.reload(), 1500);
-          };
-        } else {
+          return;
+        }
+
+        // Lancer la vérification réseau
+        // On écoute updatefound AVANT d'appeler update() pour ne rien rater
+        let updateFound = false;
+        const updateFoundHandler = () => {
+          updateFound = true;
+          const installing = reg.installing;
+          if (!installing) return;
+          installing.addEventListener('statechange', () => {
+            if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+              // Nouveau SW prêt en attente — NE PAS appeler skipWaiting automatiquement
+              showUpdateAvailable(reg);
+              btn.style.pointerEvents = '';
+            }
+          });
+        };
+        reg.addEventListener('updatefound', updateFoundHandler);
+
+        await reg.update();
+        // Attendre que la vérification réseau se termine (max 3s)
+        await new Promise(r => setTimeout(r, 3000));
+
+        reg.removeEventListener('updatefound', updateFoundHandler);
+
+        if (!updateFound && !reg.waiting) {
           btn.textContent = 'v' + APP_VERSION + ' ✓';
           btn.style.pointerEvents = '';
           setTimeout(() => { btn.textContent = 'v' + APP_VERSION; }, 2500);
           toast('L\'application est à jour ✓', 'success');
+        } else if (reg.waiting) {
+          showUpdateAvailable(reg);
+          btn.style.pointerEvents = '';
         }
       }
     } catch(e) {
@@ -1657,26 +1685,16 @@
     // Détection passive : si un SW en attente existe déjà au chargement
     navigator.serviceWorker.getRegistration().then(reg => {
       if (reg && reg.waiting) {
-        const btn = document.getElementById('btn-version-check');
-        if (btn) {
-          btn.textContent = '↑ MAJ dispo';
-          btn.style.borderColor = 'var(--accent)';
-          btn.style.color = 'var(--accent2)';
-        }
+        showUpdateAvailable(reg);
       }
-      // Observer les futures installations
+      // Observer les futures installations en arrière-plan
       if (reg) {
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                const btn = document.getElementById('btn-version-check');
-                if (btn) {
-                  btn.textContent = '↑ MAJ dispo';
-                  btn.style.borderColor = 'var(--accent)';
-                  btn.style.color = 'var(--accent2)';
-                }
+                showUpdateAvailable(reg);
                 toast('Mise à jour disponible — cliquez sur le badge de version pour l\'installer.', 'info');
               }
             });
