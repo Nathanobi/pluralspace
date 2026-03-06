@@ -272,8 +272,8 @@ function selectPrenomForImage(prenom) {
   sel.style.display='inline-flex';
   sel.innerHTML=`<span>${esc(prenom.name)}</span><span class="deselect" id="img-deselect">✕</span>`;
   document.getElementById('img-deselect').addEventListener('click', () => { selectedPrenomForImage=null; sel.style.display='none'; });
-  // Copier les tags du prénom sur l'image (seulement si c'est une nouvelle image ou si aucun tag)
-  if (!editingImageId && prenom.tags && prenom.tags.length > 0) {
+  // Fusionner les tags du prénom avec ceux de l'image (toujours, nouvelle ou existante)
+  if (prenom.tags && prenom.tags.length > 0) {
     prenom.tags.forEach(tid => {
       if (!selectedTagsForImage.includes(tid)) selectedTagsForImage.push(tid);
     });
