@@ -426,6 +426,102 @@ document.getElementById('btn-export-pk').addEventListener('click', () => {
   toast(`${members.length} membres exportés pour PluralKit.`, 'success');
 });
 
+// ── EXPORT DIRECT VERS PLURALKIT VIA API ──
+document.getElementById('btn-export-pk-api').addEventListener('click', async () => {
+  const token = getPkToken();
+  if (!token) {
+    toast('Token PluralKit requis. Configurez-le dans la section PluralKit.', 'error');
+    return;
+  }
+
+  const log = document.getElementById('pk-push-log');
+  const btn = document.getElementById('btn-export-pk-api');
+  log.style.display = '';
+  log.innerHTML = '⟳ Connexion à PluralKit…<br>';
+  btn.disabled = true;
+
+  const addLog = (msg) => { log.innerHTML += msg + '<br>'; log.scrollTop = log.scrollHeight; };
+
+  try {
+    // Récupérer les membres existants sur PK
+    addLog('↓ Récupération des membres PluralKit existants…');
+    const existingMembers = await pkFetch('/systems/@me/members');
+    const existingByName  = {};
+    const existingById    = {};
+    existingMembers.forEach(m => {
+      existingByName[m.name.toLowerCase()] = m;
+      existingById[m.id] = m;
+    });
+    addLog(`✓ ${existingMembers.length} membres trouvés sur PluralKit`);
+
+    let created = 0, updated = 0, errors = 0;
+
+    for (const pr of profils) {
+      const prenom  = prenoms.find(x => x.id === pr.prenomId);
+      const name    = prenom ? prenom.name : (pr.name || 'Inconnu');
+      const pxList  = proxys.filter(x => x.prenomId === pr.prenomId);
+
+      // Trouver l'image : préférer hostedUrl, sinon chercher via imageId
+      let avatarUrl = null;
+      const imgObj = pr.imageId ? images.find(x => x.id === pr.imageId) : null;
+      if (imgObj && imgObj.hostedUrl) avatarUrl = imgObj.hostedUrl;
+      // Sinon utiliser le lien direct renseigné (pinterestUrl ou hostedUrl du prénom)
+      if (!avatarUrl && prenom && prenom.imageId) {
+        const img2 = images.find(x => x.id === prenom.imageId);
+        if (img2 && img2.hostedUrl) avatarUrl = img2.hostedUrl;
+      }
+
+      const payload = {
+        name,
+        display_name:  null,
+        description:   pr.bio       || null,
+        pronouns:      pr.pronouns  || null,
+        color:         pr.color ? pr.color.replace('#', '') : null,
+        avatar_url:    avatarUrl,
+        proxy_tags:    pxList.map(px => ({ prefix: px.prefix || '', suffix: px.suffix || '' })),
+        keep_proxy:    false,
+      };
+
+      try {
+        // Si le profil a un pkMemberId connu → PATCH, sinon chercher par nom → PATCH, sinon → POST
+        let existingMember = pr.pkMemberId ? existingById[pr.pkMemberId] : null;
+        if (!existingMember) existingMember = existingByName[name.toLowerCase()];
+
+        if (existingMember) {
+          await pkFetch('/members/' + existingMember.id, 'PATCH', payload);
+          // Sauvegarder l'ID PK sur le profil local
+          if (pr.pkMemberId !== existingMember.id) {
+            pr.pkMemberId = existingMember.id;
+            await dbPut('profils', pr);
+          }
+          addLog(`✓ Mis à jour : <strong>${esc(name)}</strong>${avatarUrl ? ' 🖼' : ''}`);
+          updated++;
+        } else {
+          const newMember = await pkFetch('/members', 'POST', payload);
+          pr.pkMemberId = newMember.id;
+          await dbPut('profils', pr);
+          addLog(`✦ Créé : <strong>${esc(name)}</strong>${avatarUrl ? ' 🖼' : ''}`);
+          created++;
+        }
+        // Petite pause pour respecter le rate limit PK (2 req/s)
+        await new Promise(r => setTimeout(r, 550));
+      } catch(e) {
+        addLog(`✕ Erreur pour <strong>${esc(name)}</strong> : ${esc(e.message)}`);
+        errors++;
+      }
+    }
+
+    addLog('');
+    addLog(`═══ Terminé : ${created} créé(s), ${updated} mis à jour, ${errors} erreur(s) ═══`);
+    toast(`Export PK terminé : ${created} créés, ${updated} mis à jour.`, errors ? 'info' : 'success');
+  } catch(e) {
+    addLog(`✕ Erreur générale : ${esc(e.message)}`);
+    toast('Erreur lors de l\'export PluralKit.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ── RÉINITIALISATION ──
 document.getElementById('btn-reset-all').addEventListener('click', () => {
   openConfirm('⚠ Supprimer TOUTES les données ? Cette action est irréversible.', () => {
@@ -551,14 +647,23 @@ const PK_API       = 'https://api.pluralkit.me/v2';
 
 function getPkToken() { return localStorage.getItem(PK_TOKEN_KEY) || ''; }
 
-async function pkFetch(endpoint) {
+async function pkFetch(endpoint, method = 'GET', body = null) {
   const token = getPkToken();
   if (!token) throw new Error('NO_TOKEN');
-  const res = await fetch(PK_API + endpoint, {
+  const opts = {
+    method,
     headers: { 'Authorization': token, 'Content-Type': 'application/json' }
-  });
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(PK_API + endpoint, opts);
   if (res.status === 401) throw new Error('TOKEN_INVALID');
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (res.status === 404) throw new Error('NOT_FOUND');
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg = j.message || msg; } catch(e) {}
+    throw new Error(msg);
+  }
+  if (res.status === 204) return null;
   return res.json();
 }
 
