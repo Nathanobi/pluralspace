@@ -219,7 +219,6 @@ function showHostedZone(img) {
 function updateCropStatusUI(isCropped, originalDataUrl) {
   const el = document.getElementById('img-crop-status');
   if (!isCropped) { el.innerHTML='<span style="color:var(--text3);">◌ Image non recadrée</span>'; return; }
-  // "recadrée" présent → saveImage() détectera isCropped=true
   el.innerHTML = '<span style="color:var(--success);">✂ Image recadrée</span>'
     + (originalDataUrl ? ' · <button class="btn btn-ghost btn-sm" id="btn-show-original" style="padding:2px 8px;font-size:11px;">Voir originale</button>' : '');
   const btn = el.querySelector('#btn-show-original');
@@ -227,11 +226,15 @@ function updateCropStatusUI(isCropped, originalDataUrl) {
     btn.addEventListener('click', () => {
       const prev = document.getElementById('img-preview');
       if (prev.dataset.showingOriginal==='true') {
-        const img = editingImageId ? images.find(x=>x.id===editingImageId) : null;
-        prev.src = (img && img.dataUrl) ? img.dataUrl : (prev.dataset.croppedSrc||prev.src);
-        prev.dataset.showingOriginal='false';
-        btn.textContent='Voir originale';
+        // Revenir à la version recadrée : utiliser croppedSrc mémorisé
+        const croppedSrc = prev.dataset.croppedSrc || '';
+        if (croppedSrc) {
+          prev.src = croppedSrc;
+          prev.dataset.showingOriginal='false';
+          btn.textContent='Voir originale';
+        }
       } else {
+        // Mémoriser la version recadrée actuelle avant de montrer l'originale
         prev.dataset.croppedSrc = prev.src;
         prev.src = originalDataUrl;
         prev.dataset.showingOriginal='true';
@@ -269,6 +272,13 @@ function selectPrenomForImage(prenom) {
   sel.style.display='inline-flex';
   sel.innerHTML=`<span>${esc(prenom.name)}</span><span class="deselect" id="img-deselect">✕</span>`;
   document.getElementById('img-deselect').addEventListener('click', () => { selectedPrenomForImage=null; sel.style.display='none'; });
+  // Copier les tags du prénom sur l'image (seulement si c'est une nouvelle image ou si aucun tag)
+  if (!editingImageId && prenom.tags && prenom.tags.length > 0) {
+    prenom.tags.forEach(tid => {
+      if (!selectedTagsForImage.includes(tid)) selectedTagsForImage.push(tid);
+    });
+    renderImgTagChips();
+  }
 }
 
 document.getElementById('img-prenom-input').addEventListener('input', function() {
