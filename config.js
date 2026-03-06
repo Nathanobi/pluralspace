@@ -427,6 +427,41 @@ document.getElementById('btn-export-pk').addEventListener('click', () => {
 });
 
 // ── EXPORT DIRECT VERS PLURALKIT VIA API ──
+
+// Calcule une signature de comparaison d'un profil pour détecter les changements
+function profilSignature(pr, prenom, pxList, avatarUrl) {
+  const name  = prenom ? prenom.name : (pr.name || 'Inconnu');
+  return JSON.stringify({
+    name,
+    description: pr.bio       || null,
+    pronouns:    pr.pronouns  || null,
+    color:       pr.color ? pr.color.replace('#','') : null,
+    avatar_url:  avatarUrl,
+    proxy_tags:  pxList.map(px => ({ prefix: px.prefix||'', suffix: px.suffix||'' })),
+  });
+}
+
+// Signature d'un groupe (tag) pour détecter les changements
+function groupSignature(t, memberIds) {
+  const c = getTagColor(t.color);
+  return JSON.stringify({
+    name:    t.name,
+    color:   c.text.replace('#',''),
+    members: [...memberIds].sort(),
+  });
+}
+
+// Récupère l'avatar URL d'un profil
+function getAvatarUrl(pr, prenom) {
+  const imgObj = pr.imageId ? images.find(x => x.id === pr.imageId) : null;
+  if (imgObj && imgObj.hostedUrl) return imgObj.hostedUrl;
+  if (prenom && prenom.imageId) {
+    const img2 = images.find(x => x.id === prenom.imageId);
+    if (img2 && img2.hostedUrl) return img2.hostedUrl;
+  }
+  return null;
+}
+
 document.getElementById('btn-export-pk-api').addEventListener('click', async () => {
   const token = getPkToken();
   if (!token) {
@@ -443,7 +478,7 @@ document.getElementById('btn-export-pk-api').addEventListener('click', async () 
   const addLog = (msg) => { log.innerHTML += msg + '<br>'; log.scrollTop = log.scrollHeight; };
 
   try {
-    // Récupérer les membres existants sur PK
+    // ── ÉTAPE 1 : MEMBRES ──
     addLog('↓ Récupération des membres PluralKit existants…');
     const existingMembers = await pkFetch('/systems/@me/members');
     const existingByName  = {};
@@ -453,23 +488,25 @@ document.getElementById('btn-export-pk-api').addEventListener('click', async () 
       existingById[m.id] = m;
     });
     addLog(`✓ ${existingMembers.length} membres trouvés sur PluralKit`);
+    addLog('');
 
-    let created = 0, updated = 0, errors = 0;
+    let mCreated = 0, mUpdated = 0, mSkipped = 0, mErrors = 0;
+    const total = profils.length;
+    let done = 0;
+
+    // Mettre à jour le bouton avec la progression
+    const updateProgress = () => {
+      btn.textContent = `⟳ ${done}/${total}`;
+    };
 
     for (const pr of profils) {
-      const prenom  = prenoms.find(x => x.id === pr.prenomId);
-      const name    = prenom ? prenom.name : (pr.name || 'Inconnu');
-      const pxList  = proxys.filter(x => x.prenomId === pr.prenomId);
+      done++;
+      updateProgress();
 
-      // Trouver l'image : préférer hostedUrl, sinon chercher via imageId
-      let avatarUrl = null;
-      const imgObj = pr.imageId ? images.find(x => x.id === pr.imageId) : null;
-      if (imgObj && imgObj.hostedUrl) avatarUrl = imgObj.hostedUrl;
-      // Sinon utiliser le lien direct renseigné (pinterestUrl ou hostedUrl du prénom)
-      if (!avatarUrl && prenom && prenom.imageId) {
-        const img2 = images.find(x => x.id === prenom.imageId);
-        if (img2 && img2.hostedUrl) avatarUrl = img2.hostedUrl;
-      }
+      const prenom   = prenoms.find(x => x.id === pr.prenomId);
+      const name     = prenom ? prenom.name : (pr.name || 'Inconnu');
+      const pxList   = proxys.filter(x => x.prenomId === pr.prenomId);
+      const avatarUrl = getAvatarUrl(pr, prenom);
 
       const payload = {
         name,
@@ -483,42 +520,128 @@ document.getElementById('btn-export-pk-api').addEventListener('click', async () 
       };
 
       try {
-        // Si le profil a un pkMemberId connu → PATCH, sinon chercher par nom → PATCH, sinon → POST
         let existingMember = pr.pkMemberId ? existingById[pr.pkMemberId] : null;
         if (!existingMember) existingMember = existingByName[name.toLowerCase()];
 
         if (existingMember) {
-          await pkFetch('/members/' + existingMember.id, 'PATCH', payload);
-          // Sauvegarder l'ID PK sur le profil local
-          if (pr.pkMemberId !== existingMember.id) {
-            pr.pkMemberId = existingMember.id;
-            await dbPut('profils', pr);
+          // Vérifier si quelque chose a changé
+          const newSig = profilSignature(pr, prenom, pxList, avatarUrl);
+          const oldSig = pr.pkLastSync || '';
+          if (newSig === oldSig) {
+            mSkipped++;
+            continue; // Rien à faire, pas d'appel API
           }
-          addLog(`✓ Mis à jour : <strong>${esc(name)}</strong>${avatarUrl ? ' 🖼' : ''}`);
-          updated++;
+          await pkFetch('/members/' + existingMember.id, 'PATCH', payload);
+          if (pr.pkMemberId !== existingMember.id) pr.pkMemberId = existingMember.id;
+          pr.pkLastSync = newSig;
+          await dbPut('profils', pr);
+          addLog(`✓ [${done}/${total}] Mis à jour : <strong>${esc(name)}</strong>${avatarUrl ? ' 🖼' : ''}`);
+          mUpdated++;
         } else {
           const newMember = await pkFetch('/members', 'POST', payload);
-          pr.pkMemberId = newMember.id;
+          pr.pkMemberId  = newMember.id;
+          pr.pkLastSync  = profilSignature(pr, prenom, pxList, avatarUrl);
           await dbPut('profils', pr);
-          addLog(`✦ Créé : <strong>${esc(name)}</strong>${avatarUrl ? ' 🖼' : ''}`);
-          created++;
+          addLog(`✦ [${done}/${total}] Créé : <strong>${esc(name)}</strong>${avatarUrl ? ' 🖼' : ''}`);
+          mCreated++;
         }
-        // Petite pause pour respecter le rate limit PK (2 req/s)
         await new Promise(r => setTimeout(r, 550));
       } catch(e) {
-        addLog(`✕ Erreur pour <strong>${esc(name)}</strong> : ${esc(e.message)}`);
-        errors++;
+        addLog(`✕ [${done}/${total}] Erreur pour <strong>${esc(name)}</strong> : ${esc(e.message)}`);
+        mErrors++;
       }
     }
 
     addLog('');
-    addLog(`═══ Terminé : ${created} créé(s), ${updated} mis à jour, ${errors} erreur(s) ═══`);
-    toast(`Export PK terminé : ${created} créés, ${updated} mis à jour.`, errors ? 'info' : 'success');
+    if (mSkipped > 0) addLog(`— ${mSkipped} membre(s) inchangé(s), ignoré(s)`);
+    addLog(`═══ Membres : ${mCreated} créé(s), ${mUpdated} mis à jour, ${mErrors} erreur(s) ═══`);
+    addLog('');
+
+    // ── ÉTAPE 2 : GROUPES (tags → groupes PK) ──
+    addLog('↓ Récupération des groupes PluralKit existants…');
+    const existingGroups = await pkFetch('/systems/@me/groups?with_members=true');
+    const groupByName    = {};
+    const groupById      = {};
+    existingGroups.forEach(g => {
+      groupByName[g.name.toLowerCase()] = g;
+      groupById[g.id] = g;
+    });
+    addLog(`✓ ${existingGroups.length} groupes trouvés sur PluralKit`);
+    addLog('');
+
+    let gCreated = 0, gUpdated = 0, gSkipped = 0, gErrors = 0;
+
+    for (const t of tags) {
+      // Membres du groupe = prénoms ayant ce tag ET ayant un profil avec pkMemberId
+      const memberIds = prenoms
+        .filter(p => (p.tags||[]).includes(t.id))
+        .map(p => {
+          const pr = profils.find(pr2 => pr2.prenomId === p.id);
+          return pr && pr.pkMemberId ? pr.pkMemberId : null;
+        })
+        .filter(Boolean);
+
+      const c = getTagColor(t.color);
+      const groupPayload = {
+        name:         t.name,
+        display_name: null,
+        description:  null,
+        icon:         null,
+        color:        c.text.replace('#',''),
+      };
+
+      try {
+        let existingGroup = t.pkGroupId ? groupById[t.pkGroupId] : null;
+        if (!existingGroup) existingGroup = groupByName[t.name.toLowerCase()];
+
+        const newSig = groupSignature(t, memberIds);
+        const oldSig = t.pkLastSync || '';
+
+        if (existingGroup) {
+          if (newSig === oldSig) {
+            gSkipped++;
+            continue;
+          }
+          await pkFetch('/groups/' + existingGroup.id, 'PATCH', groupPayload);
+          // Mettre à jour les membres du groupe
+          await pkFetch('/groups/' + existingGroup.id + '/members/overwrite', 'POST', memberIds);
+          if (t.pkGroupId !== existingGroup.id) t.pkGroupId = existingGroup.id;
+          t.pkLastSync = newSig;
+          await dbPut('tags', t);
+          addLog(`✓ Groupe mis à jour : <strong>${esc(t.name)}</strong> (${memberIds.length} membres)`);
+          gUpdated++;
+        } else {
+          const newGroup = await pkFetch('/groups', 'POST', groupPayload);
+          t.pkGroupId  = newGroup.id;
+          if (memberIds.length > 0) {
+            await pkFetch('/groups/' + newGroup.id + '/members/overwrite', 'POST', memberIds);
+          }
+          t.pkLastSync = newSig;
+          await dbPut('tags', t);
+          addLog(`✦ Groupe créé : <strong>${esc(t.name)}</strong> (${memberIds.length} membres)`);
+          gCreated++;
+        }
+        await new Promise(r => setTimeout(r, 600));
+      } catch(e) {
+        addLog(`✕ Erreur groupe <strong>${esc(t.name)}</strong> : ${esc(e.message)}`);
+        gErrors++;
+      }
+    }
+
+    addLog('');
+    if (gSkipped > 0) addLog(`— ${gSkipped} groupe(s) inchangé(s), ignoré(s)`);
+    addLog(`═══ Groupes : ${gCreated} créé(s), ${gUpdated} mis à jour, ${gErrors} erreur(s) ═══`);
+
+    const totalChanges = mCreated + mUpdated + gCreated + gUpdated;
+    toast(`Export PK terminé : ${mCreated+mUpdated} membres, ${gCreated+gUpdated} groupes.`, (mErrors+gErrors) ? 'info' : 'success');
+    logHistory(`Export PluralKit : ${mCreated} créés, ${mUpdated} mis à jour, ${gCreated} groupes créés, ${gUpdated} groupes mis à jour`, 'config');
+
   } catch(e) {
     addLog(`✕ Erreur générale : ${esc(e.message)}`);
     toast('Erreur lors de l\'export PluralKit.', 'error');
   } finally {
     btn.disabled = false;
+    btn.textContent = '⟡ Envoyer à PK';
   }
 });
 
