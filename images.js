@@ -1,6 +1,6 @@
 // ── IMAGES ──
 let imgSort = 'alpha', imgSearch = '', imgTagFilterMap = new Map(), imgUnlinkedOnly = false;
-let editingImageId = null, selectedPrenomForImage = null, selectedTagsForImage = [];
+let editingImageId = null, selectedPrenomForImage = null, selectedTagsForImage = [], currentIsCropped = false;
 let currentOriginalDataUrl = null;
 
 function renderImgTagFilters() {
@@ -145,10 +145,11 @@ document.getElementById('image-search').addEventListener('input', e => { imgSear
 // ── MODAL IMAGE ──
 function openImageModal(img) {
   img = img||null;
-  editingImageId      = img ? img.id : null;
+  editingImageId         = img ? img.id : null;
   selectedPrenomForImage = null;
   selectedTagsForImage   = img ? (img.tags||[]).slice() : [];
   currentOriginalDataUrl = img ? (img.originalDataUrl||null) : null;
+  currentIsCropped       = img ? (img.isCropped || false) : false;
   document.getElementById('modal-image-title').textContent = img ? 'Modifier l\'image' : 'Ajouter une image';
   document.getElementById('img-drop-content').style.display = '';
   document.getElementById('img-preview-wrap').style.display = 'none';
@@ -340,6 +341,7 @@ function loadImageFile(file) {
     document.getElementById('img-drop-content').style.display='none';
     document.getElementById('img-preview-wrap').style.display='';
     currentOriginalDataUrl = dataUrl;
+    currentIsCropped = false;
     updateCropStatusUI(false, null);
     // Nouvelle image chargée : on efface l'ancienne URL hébergée si c'était une édition
     showHostedZone(editingImageId ? images.find(x=>x.id===editingImageId) : null);
@@ -351,7 +353,7 @@ async function saveImage() {
   const preview   = document.getElementById('img-preview');
   const dataUrl   = preview.dataset.showingOriginal==='true' ? (preview.dataset.croppedSrc||preview.src) : preview.src;
   const statusEl  = document.getElementById('img-crop-status');
-  const isCropped = statusEl.innerHTML.includes('recadrée') || statusEl.innerHTML.includes('Recadrée');
+  const isCropped = currentIsCropped;
   if (!dataUrl||!dataUrl.startsWith('data:image')) {
     if (!editingImageId) { toast('Veuillez sélectionner une image.','error'); return; }
   }
@@ -611,6 +613,7 @@ document.getElementById('btn-img-crop').addEventListener('click', () => {
     document.getElementById('img-preview').src=croppedUrl;
     document.getElementById('img-drop-content').style.display='none';
     document.getElementById('img-preview-wrap').style.display='';
+    currentIsCropped = true;
     updateCropStatusUI(true, currentOriginalDataUrl);
     toast('Image recadrée !','success'); logHistory('Image recadrée', 'image');
   });
