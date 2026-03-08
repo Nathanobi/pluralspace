@@ -1,6 +1,6 @@
 // ── IMAGES ──
-let imgSort = 'alpha', imgSearch = '', imgTagFilterMap = new Map(), imgUnlinkedOnly = false;
-let editingImageId = null, selectedPrenomForImage = null, selectedTagsForImage = [], currentIsCropped = false;
+let imgSort = 'alpha', imgSearch = '', imgTagFilterMap = new Map(), imgUnlinkedOnly = false, imgHostedFilter = 0; // 0=tous, 1=hébergée, -1=non hébergée
+let editingImageId = null, selectedPrenomForImage = null, selectedTagsForImage = [], currentIsCropped = false, currentHostedUrl = null;
 let currentOriginalDataUrl = null;
 
 function renderImgTagFilters() {
@@ -43,6 +43,8 @@ function renderImgTagFilters() {
 function getFilteredImages() {
   let list = images.slice();
   if (imgUnlinkedOnly) list = list.filter(img => !img.prenomId || !prenoms.find(x=>x.id===img.prenomId));
+  if (imgHostedFilter ===  1) list = list.filter(img =>  !!img.hostedUrl);
+  if (imgHostedFilter === -1) list = list.filter(img => !img.hostedUrl);
   if (imgSearch) {
     const q = imgSearch.toLowerCase();
     list = list.filter(img => {
@@ -90,6 +92,9 @@ function renderImages() {
           ${img.isCropped
             ? '<span class="badge badge-success" style="font-size:10px;">✂ Recadrée</span>'
             : '<span class="badge badge-warn" style="font-size:10px;">◌ Non recadrée</span>'}
+          ${img.hostedUrl
+            ? '<span class="badge badge-success" style="font-size:10px;">✧ Hébergée</span>'
+            : '<span class="badge badge-warn" style="font-size:10px;">◌ Non hébergée</span>'}
           ${img.pinterestUrl ? '<span class="badge" style="font-size:10px;background:rgba(230,0,35,0.15);color:#e60023;border-color:rgba(230,0,35,0.3);">📌 Pinterest</span>' : ''}
         </div>
       </div>
@@ -132,6 +137,18 @@ document.querySelectorAll('[data-img-sort]').forEach(btn => {
     if (btn.dataset.imgSort === 'unlinked') {
       imgUnlinkedOnly = !imgUnlinkedOnly;
       btn.classList.toggle('active', imgUnlinkedOnly);
+    } else if (btn.dataset.imgSort === 'hosted') {
+      imgHostedFilter = imgHostedFilter === 1 ? 0 : 1;
+      btn.classList.toggle('active', imgHostedFilter === 1);
+      // Désactiver l'autre filtre hébergée
+      const notHostedBtn = document.querySelector('[data-img-sort="not-hosted"]');
+      if (notHostedBtn && imgHostedFilter === 1) { imgHostedFilter = 1; notHostedBtn.classList.remove('active'); }
+    } else if (btn.dataset.imgSort === 'not-hosted') {
+      imgHostedFilter = imgHostedFilter === -1 ? 0 : -1;
+      btn.classList.toggle('active', imgHostedFilter === -1);
+      // Désactiver l'autre filtre hébergée
+      const hostedBtn = document.querySelector('[data-img-sort="hosted"]');
+      if (hostedBtn && imgHostedFilter === -1) { hostedBtn.classList.remove('active'); }
     } else {
       imgSort = btn.dataset.imgSort;
       document.querySelectorAll('[data-img-sort]:not([data-img-sort="unlinked"])').forEach(b=>b.classList.remove('active'));
@@ -150,6 +167,7 @@ function openImageModal(img) {
   selectedTagsForImage   = img ? (img.tags||[]).slice() : [];
   currentOriginalDataUrl = img ? (img.originalDataUrl||null) : null;
   currentIsCropped       = img ? (img.isCropped || false) : false;
+  currentHostedUrl       = img ? (img.hostedUrl || null) : null;
   document.getElementById('modal-image-title').textContent = img ? 'Modifier l\'image' : 'Ajouter une image';
   document.getElementById('img-drop-content').style.display = '';
   document.getElementById('img-preview-wrap').style.display = 'none';
@@ -342,6 +360,7 @@ function loadImageFile(file) {
     document.getElementById('img-preview-wrap').style.display='';
     currentOriginalDataUrl = dataUrl;
     currentIsCropped = false;
+    currentHostedUrl = null;
     updateCropStatusUI(false, null);
     // Nouvelle image chargée : on efface l'ancienne URL hébergée si c'était une édition
     showHostedZone(editingImageId ? images.find(x=>x.id===editingImageId) : null);
@@ -375,9 +394,9 @@ async function saveImage() {
     await dbPut('images',img);
     toast('Image modifiée.','success'); logHistory('Image modifiée', 'image');
   } else {
-    const img={ id:uid(), dataUrl, isCropped, originalDataUrl:currentOriginalDataUrl||dataUrl, prenomId:selectedPrenomForImage?selectedPrenomForImage.id:null, tags:selectedTagsForImage.slice(), createdAt:Date.now(), hostedUrl:null };
-    // Auto-upload imgbb si clé disponible
-    if (getImgbbKey()) {
+    const img={ id:uid(), dataUrl, isCropped, originalDataUrl:currentOriginalDataUrl||dataUrl, prenomId:selectedPrenomForImage?selectedPrenomForImage.id:null, tags:selectedTagsForImage.slice(), createdAt:Date.now(), hostedUrl: currentHostedUrl };
+    // Auto-upload imgbb si clé disponible ET pas déjà hébergée manuellement
+    if (!img.hostedUrl && getImgbbKey()) {
       try {
         img.hostedUrl = await uploadToImgbb(dataUrl);
         toast('Image ajoutée et hébergée ✓','success');
@@ -389,7 +408,7 @@ async function saveImage() {
     if (selectedPrenomForImage) { selectedPrenomForImage.hasImage=true; selectedPrenomForImage.imageId=img.id; await dbPut('prenoms',selectedPrenomForImage); }
     if (!getImgbbKey()) toast('Image ajoutée.','success'); logHistory('Image ajoutée', 'image');
   }
-  currentOriginalDataUrl=null;
+  currentOriginalDataUrl=null; currentHostedUrl=null;
   document.getElementById('modal-image').classList.remove('open');
   editingImageId=null; selectedPrenomForImage=null;
   renderImages(); renderPrenoms(); updateStats();
@@ -692,6 +711,7 @@ document.getElementById('btn-upload-catbox').addEventListener('click', async () 
     status.textContent = '✓ Hébergée avec succès';
 
     // Sauvegarder l'URL dans l'objet image si déjà enregistrée
+    currentHostedUrl = url; // toujours mémoriser pour saveImage
     if (editingImageId) {
       const img = images.find(x=>x.id===editingImageId);
       if (img) { img.hostedUrl = url; await dbPut('images', img); renderImages(); }

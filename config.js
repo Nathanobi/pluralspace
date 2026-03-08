@@ -1062,7 +1062,7 @@ document.getElementById('btn-pk-import').addEventListener('click', async () => {
           updateProgress(i, `${memberName} — téléchargement avatar…`);
           try {
             const dataUrl = await fetchImageAsDataUrl(m.avatar_url);
-            const imgRec = { id: uid(), dataUrl, isCropped: false, originalDataUrl: dataUrl,
+            const imgRec = { id: uid(), dataUrl, isCropped: true, originalDataUrl: dataUrl,
                              prenomId: prenom.id, tags: [], createdAt: Date.now(), hostedUrl: m.avatar_url };
             await dbPut('images', imgRec);
             images.push(imgRec);
@@ -1073,7 +1073,7 @@ document.getElementById('btn-pk-import').addEventListener('click', async () => {
             avatarsImported++;
           } catch(avatarErr) {
             // Stocker juste l'URL si le téléchargement échoue (CORS Discord)
-            const imgRec = { id: uid(), dataUrl: null, isCropped: false, originalDataUrl: null,
+            const imgRec = { id: uid(), dataUrl: null, isCropped: true, originalDataUrl: null,
                              prenomId: prenom.id, tags: [], createdAt: Date.now(), hostedUrl: m.avatar_url };
             await dbPut('images', imgRec);
             images.push(imgRec);
