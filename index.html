@@ -688,7 +688,7 @@
       </button>
       <div class="nav-logo-text">
         <h1>Plural Space</h1>
-        <span>Gestionnaire de système</span>
+        <span style="font-size:10px;">Gestionnaire de système</span>
       </div>
     </div>
     <div class="nav-links">
@@ -709,7 +709,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.40</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.41</button>
       </div>
 
       <!-- Statistiques -->
@@ -790,7 +790,9 @@
       <div class="prenom-toolbar">
         <input type="text" class="input" id="prenom-search" placeholder="🔍  Rechercher un prénom…" />
         <button class="sort-btn active" data-sort="alpha">A → Z</button>
+        <button class="sort-btn" data-sort="alpha-z">Z → A</button>
         <button class="sort-btn" data-sort="chrono">Plus récent</button>
+        <button class="sort-btn" data-sort="old">Plus ancien</button>
         <div class="toolbar-sep"></div>
         <button class="sort-btn filter-btn" data-prenom-filter="noimage">◌ Sans image</button>
         <button class="sort-btn filter-btn" data-prenom-filter="noproxy">◌ Sans proxy</button>
@@ -816,8 +818,12 @@
       <div class="prenom-toolbar" style="margin-bottom:16px;">
         <input type="text" class="input" id="image-search" placeholder="🔍  Rechercher par prénom ou tag…" />
         <button class="sort-btn active" data-img-sort="chrono">Plus récent</button>
+        <button class="sort-btn" data-img-sort="old">Plus ancien</button>
         <button class="sort-btn" data-img-sort="alpha">A → Z</button>
+        <button class="sort-btn" data-img-sort="alpha-z">Z → A</button>
         <button class="sort-btn" data-img-sort="unlinked">Sans prénom</button>
+        <button class="sort-btn" data-img-sort="cropped">✂ Recadrée</button>
+        <button class="sort-btn" data-img-sort="not-cropped">◌ Non recadrée</button>
         <button class="sort-btn" data-img-sort="hosted">✧ Hébergée</button>
         <button class="sort-btn" data-img-sort="not-hosted">◌ Non hébergée</button>
       </div>
@@ -832,7 +838,7 @@
     <!-- PROXYS -->
     <section class="page" id="page-proxys">
       <div class="page-header">
-        <div><div class="page-title">Proxys</div><div class="page-subtitle" id="proxys-count-label">0 proxy configuré</div></div>
+        <div><div class="page-title">Proxys</div><div class="page-subtitle" id="proxys-count-label" style="min-height:1.2em;">0 proxy configuré</div></div>
         <button class="btn btn-primary" id="btn-add-proxy">⟡ Nouveau proxy</button>
       </div>
       <div id="no-proxy-banner" style="display:none;">
@@ -845,13 +851,13 @@
         </div>
         <div id="no-proxy-list" style="display:none;"><div class="no-proxy-grid" id="no-proxy-grid"></div></div>
       </div>
-      <div class="proxy-toolbar">
-        <input type="text" class="input" id="proxy-search" placeholder="🔍  Rechercher par prénom ou proxy…" style="max-width:300px;" />
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="sort-btn active" data-proxy-sort="alpha-name">Prénom A→Z</button>
-          <button class="sort-btn" data-proxy-sort="alpha-proxy">Proxy A→Z</button>
-          <button class="sort-btn" data-proxy-sort="chrono">Plus récent</button>
-        </div>
+      <div class="prenom-toolbar">
+        <input type="text" class="input" id="proxy-search" placeholder="🔍  Rechercher par prénom ou proxy…" />
+        <button class="sort-btn active" data-proxy-sort="alpha-name">Prénom A→Z</button>
+        <button class="sort-btn" data-proxy-sort="alpha-proxy">Proxy A→Z</button>
+        <button class="sort-btn" data-proxy-sort="alpha-name-z">Prénom Z→A</button>
+        <button class="sort-btn" data-proxy-sort="chrono">Plus récent</button>
+        <button class="sort-btn" data-proxy-sort="old">Plus ancien</button>
       </div>
       <div class="tag-filter-row" id="proxy-tag-filter-row">
         <span class="tag-filter-label">Tags :</span>
@@ -918,7 +924,9 @@
       <div class="prenom-toolbar" style="margin-bottom:12px;">
         <input type="text" class="input" id="profil-search" placeholder="🔍  Rechercher un profil…" />
         <button class="sort-btn active" data-profil-sort="alpha">A → Z</button>
+        <button class="sort-btn" data-profil-sort="alpha-z">Z → A</button>
         <button class="sort-btn" data-profil-sort="chrono">Plus récent</button>
+        <button class="sort-btn" data-profil-sort="old">Plus ancien</button>
         <div class="toolbar-sep"></div>
         <button class="sort-btn filter-btn" id="filter-profil-incomplete" data-profil-filter="incomplete">◌ Incomplets</button>
         <button class="sort-btn filter-btn" id="filter-profil-horspk" data-profil-filter="horspk">◌ Hors PK</button>
@@ -1621,7 +1629,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.40';
+  const APP_VERSION = '1.41';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {

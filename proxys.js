@@ -483,8 +483,13 @@ function getFilteredProxys() {
     const na=prenoms.find(p=>p.id===a.prenomId); const nb=prenoms.find(p=>p.id===b.prenomId);
     return (na?na.name:'').localeCompare(nb?nb.name:'','fr');
   });
+  else if (proxySort==='alpha-name-z') list.sort((a,b)=>{
+    const na=prenoms.find(p=>p.id===a.prenomId); const nb=prenoms.find(p=>p.id===b.prenomId);
+    return (nb?nb.name:'').localeCompare(na?na.name:'','fr');
+  });
   else if (proxySort==='alpha-proxy') list.sort((a,b)=>(a.prefix||'').localeCompare(b.prefix||'','fr'));
   else if (proxySort==='chrono')      list.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  else if (proxySort==='old')         list.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   return list;
 }
 
@@ -494,7 +499,7 @@ function renderProxys() {
   const empty = document.getElementById('proxy-empty');
   const table = document.getElementById('proxy-table');
   const lbl   = document.getElementById('proxys-count-label');
-  lbl.textContent = `${proxys.length} proxy${proxys.length!==1?'s':''} configuré${proxys.length!==1?'s':''}`;
+  const totalPrenoms = new Set(proxys.map(x=>x.prenomId)).size; const shownPrenoms = new Set(list.map(x=>x.prenomId)).size; lbl.textContent = `${proxys.length} proxy${proxys.length!==1?'s':''} configuré${proxys.length!==1?'s':''}${shownPrenoms!==totalPrenoms?' · '+shownPrenoms+' prénom'+(shownPrenoms!==1?'s':'')+' affiché'+(shownPrenoms!==1?'s':''):''}`;  
   if (list.length===0) { table.style.display='none'; empty.style.display=''; detectProxyConflicts(); return; }
   table.style.display=''; empty.style.display='none';
   detectProxyConflicts();

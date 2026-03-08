@@ -204,8 +204,10 @@ function getFilteredPrenoms() {
   if (filterNoImage)         list=list.filter(p => !p.hasImage);
   if (filterNoProxy)         list=list.filter(p => !proxys.some(px=>px.prenomId===p.id));
   if (filterNoProfil)        list=list.filter(p => !profils.some(pr=>pr.prenomId===p.id));
-  if      (currentSort==='alpha')  list.sort((a,b)=>a.name.localeCompare(b.name,'fr'));
-  else if (currentSort==='chrono') list.sort((a,b)=>b.createdAt-a.createdAt);
+  if      (currentSort==='alpha')   list.sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  else if (currentSort==='alpha-z') list.sort((a,b)=>b.name.localeCompare(a.name,'fr'));
+  else if (currentSort==='chrono')  list.sort((a,b)=>b.createdAt-a.createdAt);
+  else if (currentSort==='old')     list.sort((a,b)=>a.createdAt-b.createdAt);
   return list;
 }
 

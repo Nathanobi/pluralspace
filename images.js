@@ -61,12 +61,11 @@ function getFilteredImages() {
       if (state === -1) list = list.filter(img => !(img.tags||[]).includes(tid));
     }
   }
-  if (imgSort==='alpha') list.sort((a,b)=>{
-    const pa=a.prenomId?prenoms.find(x=>x.id===a.prenomId):null;
-    const pb=b.prenomId?prenoms.find(x=>x.id===b.prenomId):null;
-    return (pa?pa.name:'zzz').localeCompare(pb?pb.name:'zzz','fr');
-  });
-  else list.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const nameOf = img => { const p=img.prenomId?prenoms.find(x=>x.id===img.prenomId):null; return p?p.name:'zzz'; };
+  if      (imgSort==='alpha')   list.sort((a,b)=>nameOf(a).localeCompare(nameOf(b),'fr'));
+  else if (imgSort==='alpha-z') list.sort((a,b)=>nameOf(b).localeCompare(nameOf(a),'fr'));
+  else if (imgSort==='old')     list.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  else                          list.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); // chrono
   return list;
 }
 
@@ -75,7 +74,7 @@ function renderImages() {
   const grid  = document.getElementById('images-grid');
   const empty = document.getElementById('images-empty');
   const lbl   = document.getElementById('images-count-label');
-  lbl.textContent = `${images.length} image${images.length!==1?'s':''}`;
+  lbl.textContent = `${images.length} image${images.length!==1?'s':''}${list.length!==images.length?' · '+list.length+' affiché'+(list.length!==1?'s':''):''}`;  
   if (list.length===0) { grid.style.display='none'; empty.style.display=''; return; }
   grid.style.display='grid'; empty.style.display='none';
 
@@ -146,12 +145,22 @@ document.querySelectorAll('[data-img-sort]').forEach(btn => {
     } else if (btn.dataset.imgSort === 'not-hosted') {
       imgHostedFilter = imgHostedFilter === -1 ? 0 : -1;
       btn.classList.toggle('active', imgHostedFilter === -1);
-      // Désactiver l'autre filtre hébergée
-      const hostedBtn = document.querySelector('[data-img-sort="hosted"]');
-      if (hostedBtn && imgHostedFilter === -1) { hostedBtn.classList.remove('active'); }
+      document.querySelector('[data-img-sort="hosted"]')?.classList.remove('active');
+    } else if (btn.dataset.imgSort === 'cropped') {
+      imgCroppedFilter = imgCroppedFilter === 1 ? 0 : 1;
+      btn.classList.toggle('active', imgCroppedFilter === 1);
+      document.querySelector('[data-img-sort="not-cropped"]')?.classList.remove('active');
+    } else if (btn.dataset.imgSort === 'not-cropped') {
+      imgCroppedFilter = imgCroppedFilter === -1 ? 0 : -1;
+      btn.classList.toggle('active', imgCroppedFilter === -1);
+      document.querySelector('[data-img-sort="cropped"]')?.classList.remove('active');
     } else {
+      // Boutons de tri (pas filtres booléens)
       imgSort = btn.dataset.imgSort;
-      document.querySelectorAll('[data-img-sort]:not([data-img-sort="unlinked"])').forEach(b=>b.classList.remove('active'));
+      const filterBtns = ['unlinked','hosted','not-hosted','cropped','not-cropped'];
+      document.querySelectorAll('[data-img-sort]').forEach(b => {
+        if (!filterBtns.includes(b.dataset.imgSort)) b.classList.remove('active');
+      });
       btn.classList.add('active');
     }
     renderImages();

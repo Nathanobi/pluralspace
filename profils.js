@@ -51,7 +51,7 @@ function renderProfils() {
   const grid  = document.getElementById('profils-grid');
   const empty = document.getElementById('profils-empty');
   const lbl   = document.getElementById('profils-count-label');
-  lbl.textContent = `${profils.length} profil${profils.length!==1?'s':''}`;
+  lbl.textContent = `${profils.length} profil${profils.length!==1?'s':''}${list.length!==profils.length?' · '+list.length+' affiché'+(list.length!==1?'s':''):''}`;  
   if (list.length===0) { grid.style.display='none'; empty.style.display=''; return; }
   grid.style.display='grid'; empty.style.display='none';
 
@@ -143,7 +143,12 @@ function getProfils() {
     const na = prenoms.find(x=>x.id===a.prenomId); const nb = prenoms.find(x=>x.id===b.prenomId);
     return (na?na.name:'').localeCompare(nb?nb.name:'', 'fr');
   });
+  else if (profilSort==='alpha-z') list.sort((a,b) => {
+    const na = prenoms.find(x=>x.id===a.prenomId); const nb = prenoms.find(x=>x.id===b.prenomId);
+    return (nb?nb.name:'').localeCompare(na?na.name:'', 'fr');
+  });
   else if (profilSort==='chrono') list.sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+  else if (profilSort==='old')    list.sort((a,b) => (a.createdAt||0)-(b.createdAt||0));
   return list;
 }
 

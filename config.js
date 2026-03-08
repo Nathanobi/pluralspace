@@ -1001,7 +1001,7 @@ document.getElementById('btn-pk-import').addEventListener('click', async () => {
       }
       if (!prenom) {
         // Créer un nouveau prénom
-        prenom = { id: uid(), name: memberName, tags: [], notes: '', hasImage: false, imageId: null, createdAt: Date.now() };
+        prenom = { id: uid(), name: memberName, tags: [], notes: '', hasImage: false, imageId: null, createdAt: m.created ? new Date(m.created).getTime() : Date.now() };
         await dbPut('prenoms', prenom);
         prenoms.push(prenom);
         appendLog(`&nbsp;&nbsp;<span style="color:var(--success);">✦ Prénom créé</span>`);
@@ -1020,7 +1020,7 @@ document.getElementById('btn-pk-import').addEventListener('click', async () => {
         bio:        (m.description || '').slice(0, 500),
       };
       if (!profil) {
-        profil = { id: uid(), prenomId: prenom.id, name: prenom.name, imageId: null, createdAt: Date.now(), ...pkData };
+        profil = { id: uid(), prenomId: prenom.id, name: prenom.name, imageId: null, createdAt: m.created ? new Date(m.created).getTime() : Date.now(), ...pkData };
         await dbPut('profils', profil);
         profils.push(profil);
         appendLog(`&nbsp;&nbsp;<span style="color:var(--accent3);">◉ Profil créé</span>`);
@@ -1044,7 +1044,7 @@ document.getElementById('btn-pk-import').addEventListener('click', async () => {
         const suffix = pt.suffix || '';
         const dup = existingPx.some(x => (x.prefix||'')===prefix && (x.suffix||'')===suffix);
         if (!dup && (prefix || suffix)) {
-          const px = { id: uid(), prenomId: prenom.id, prefix, suffix, createdAt: Date.now() };
+          const px = { id: uid(), prenomId: prenom.id, prefix, suffix, createdAt: m.created ? new Date(m.created).getTime() : Date.now() };
           await dbPut('proxys', px);
           proxys.push(px);
           existingPx.push(px);
@@ -1063,7 +1063,7 @@ document.getElementById('btn-pk-import').addEventListener('click', async () => {
           try {
             const dataUrl = await fetchImageAsDataUrl(m.avatar_url);
             const imgRec = { id: uid(), dataUrl, isCropped: true, originalDataUrl: dataUrl,
-                             prenomId: prenom.id, tags: [], createdAt: Date.now(), hostedUrl: m.avatar_url };
+                             prenomId: prenom.id, tags: [], createdAt: m.created ? new Date(m.created).getTime() : Date.now(), hostedUrl: m.avatar_url };
             await dbPut('images', imgRec);
             images.push(imgRec);
             prenom.hasImage = true; prenom.imageId = imgRec.id;
@@ -1074,7 +1074,7 @@ document.getElementById('btn-pk-import').addEventListener('click', async () => {
           } catch(avatarErr) {
             // Stocker juste l'URL si le téléchargement échoue (CORS Discord)
             const imgRec = { id: uid(), dataUrl: null, isCropped: true, originalDataUrl: null,
-                             prenomId: prenom.id, tags: [], createdAt: Date.now(), hostedUrl: m.avatar_url };
+                             prenomId: prenom.id, tags: [], createdAt: m.created ? new Date(m.created).getTime() : Date.now(), hostedUrl: m.avatar_url };
             await dbPut('images', imgRec);
             images.push(imgRec);
             prenom.hasImage = true; prenom.imageId = imgRec.id;
