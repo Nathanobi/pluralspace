@@ -272,7 +272,7 @@ function refreshProfilLinkedInfo(prenom) {
       el.addEventListener('click', () => {
         const px = proxys.find(x=>x.id===el.dataset.profilEditPx);
         if (px) {
-          document.getElementById('modal-proxy').style.zIndex='200';
+          document.getElementById('modal-proxy').style.zIndex='250';
           openProxyModal(px);
           _watchModalClose('modal-proxy', () => {
             document.getElementById('modal-proxy').style.zIndex='';
@@ -286,7 +286,7 @@ function refreshProfilLinkedInfo(prenom) {
   }
   proxyActions.innerHTML = '<button class="btn btn-ghost btn-sm" id="btn-profil-add-px">+ Proxy</button>';
   proxyActions.querySelector('#btn-profil-add-px')?.addEventListener('click', () => {
-    document.getElementById('modal-proxy').style.zIndex='200';
+    document.getElementById('modal-proxy').style.zIndex='250';
     openProxyModal(null, prenom);
     _watchModalClose('modal-proxy', () => {
       document.getElementById('modal-proxy').style.zIndex='';

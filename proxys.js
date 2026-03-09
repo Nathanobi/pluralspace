@@ -233,7 +233,9 @@ function selectPrenomForProxy(prenom) {
 // ── MULTI-PROXY INPUT ──
 // Les lignes du formulaire multi-proxy sont gérées dynamiquement
 function getProxyRows() {
-  return Array.from(document.querySelectorAll('.proxy-row-entry')).map(row => ({
+  // Scoper au modal de base uniquement (pas les clones stackés)
+  const container = document.getElementById('proxy-rows-container');
+  return Array.from(container.querySelectorAll('.proxy-row-entry')).map(row => ({
     prefix: row.querySelector('.proxy-row-prefix').value,
     suffix: row.querySelector('.proxy-row-suffix').value,
   })).filter(r => r.prefix.trim() || r.suffix.trim());
@@ -290,7 +292,10 @@ function openProxyModal(proxy, preselected, stacked=false) {
     const clone = existingBase.cloneNode(true);
     const newId = 'modal-proxy-stack-' + Date.now();
     clone.id = newId;
-    clone.style.zIndex = 150 + proxyModalStack.length * 10;
+    // Calculer le z-index max de toutes les modals ouvertes pour s'assurer d'être au-dessus
+    const maxZ = Math.max(...Array.from(document.querySelectorAll('.modal-overlay.open, .modal-overlay[style*="display: flex"]'))
+      .map(el => parseInt(el.style.zIndex||getComputedStyle(el).zIndex||100)), 100);
+    clone.style.zIndex = maxZ + 50 + proxyModalStack.length * 10;
     // Décaler légèrement pour effet "empilé"
     clone.querySelector('.modal').style.transform = `translate(${proxyModalStack.length*16}px, ${proxyModalStack.length*16}px)`;
     document.body.appendChild(clone);

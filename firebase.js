@@ -66,13 +66,21 @@ async function fbSignIn() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    // iOS Safari (standalone ou non) bloque les popups OAuth → redirect obligatoire
-    // Android et desktop → popup (plus fluide, pas de rechargement de page)
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
+    // Détection fiable iOS PWA standalone vs Safari normal vs autres
+    const isIOS        = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.navigator.standalone === true; // iOS PWA ajoutée à l'écran
+    // Sur iOS PWA standalone : signInWithRedirect ne revient pas dans la PWA (ouvre Safari séparé)
+    // → on force signInWithPopup qui reste dans le WKWebView de la PWA
+    // Sur iOS Safari normal : signInWithRedirect fonctionne mieux (popup souvent bloqué)
+    // Sur Android/Desktop : signInWithPopup (plus fluide)
+    if (isIOS && isStandalone) {
+      // PWA iOS — popup reste dans le contexte de la PWA
+      await fbAuth.signInWithPopup(provider);
+    } else if (isIOS) {
+      // Safari iOS normal — redirect (popup bloqué par défaut)
       await fbAuth.signInWithRedirect(provider);
-      // La page se recharge après redirect — getRedirectResult() dans fbInit gère le retour
     } else {
+      // Android / Desktop
       await fbAuth.signInWithPopup(provider);
     }
   } catch(e) {

@@ -401,6 +401,17 @@ async function saveImage() {
     img.prenomId=selectedPrenomForImage?selectedPrenomForImage.id:null;
     img.tags=selectedTagsForImage.slice();
     await dbPut('images',img);
+    // Synchroniser les tags de l'image vers le prénom associé
+    if (selectedPrenomForImage) {
+      const p = prenoms.find(x=>x.id===selectedPrenomForImage.id);
+      if (p) {
+        const merged = Array.from(new Set([...(p.tags||[]), ...selectedTagsForImage]));
+        if (merged.length !== (p.tags||[]).length || merged.some(t=>!(p.tags||[]).includes(t))) {
+          p.tags = merged;
+          await dbPut('prenoms', p);
+        }
+      }
+    }
     toast('Image modifiée.','success'); logHistory('Image modifiée', 'image');
   } else {
     const img={ id:uid(), dataUrl, isCropped, originalDataUrl:currentOriginalDataUrl||dataUrl, prenomId:selectedPrenomForImage?selectedPrenomForImage.id:null, tags:selectedTagsForImage.slice(), createdAt:Date.now(), hostedUrl: currentHostedUrl };
@@ -414,7 +425,15 @@ async function saveImage() {
       }
     }
     await dbPut('images',img); images.push(img);
-    if (selectedPrenomForImage) { selectedPrenomForImage.hasImage=true; selectedPrenomForImage.imageId=img.id; await dbPut('prenoms',selectedPrenomForImage); }
+    if (selectedPrenomForImage) {
+      const p = prenoms.find(x=>x.id===selectedPrenomForImage.id) || selectedPrenomForImage;
+      p.hasImage = true;
+      p.imageId  = img.id;
+      // Synchroniser les tags de l'image vers le prénom
+      const merged = Array.from(new Set([...(p.tags||[]), ...selectedTagsForImage]));
+      p.tags = merged;
+      await dbPut('prenoms', p);
+    }
     if (!getImgbbKey()) toast('Image ajoutée.','success'); logHistory('Image ajoutée', 'image');
   }
   currentOriginalDataUrl=null; currentHostedUrl=null;
@@ -723,12 +742,11 @@ document.getElementById('btn-upload-catbox').addEventListener('click', async () 
     currentHostedUrl = url; // toujours mémoriser pour saveImage
     if (editingImageId) {
       const img = images.find(x=>x.id===editingImageId);
-      if (img) { img.hostedUrl = url; await dbPut('images', img); renderImages(); }
+      if (img) { img.hostedUrl = url; await dbPut('images', img); }
     }
-
-    // Afficher l'URL et activer le bouton copier
-    document.getElementById('img-hosted-url').textContent = url;
-    document.getElementById('btn-copy-hosted-url').style.display = '';
+    // Toujours rafraîchir les cartes et la zone hébergée
+    renderImages();
+    showHostedZone({ hostedUrl: url });
 
     setTimeout(() => { progress.style.display='none'; bar.style.width='0%'; }, 1500);
     toast('Image hébergée sur imgbb !','success');
