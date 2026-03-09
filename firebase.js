@@ -158,33 +158,41 @@ async function fbPullAll() {
       const remoteItems = [];
       snap.forEach(doc => remoteItems.push(doc.data()));
 
+      // ── Remplacement complet : snapshot local d'abord, puis vider, puis réécrire ──
+      // (évite les doublons si les deux appareils avaient des items aux IDs différents)
+      const localSnapshot = await dbGetAll(col); // snapshot AVANT clear
+
+      await new Promise((res, rej) => {
+        const tx    = db.transaction(col, 'readwrite');
+        const store = tx.objectStore(col);
+        const req   = store.clear();
+        req.onsuccess = () => res();
+        req.onerror   = rej;
+      });
+
       if (col === 'images') {
-        // Images : fusionner en préservant les dataUrl locaux
-        const localImages = await dbGetAll('images');
+        // Images : récupérer les dataUrl locaux depuis le snapshot
+        const localImages = localSnapshot; // snapshot pris avant clear
         for (const remoteImg of remoteItems) {
           const localImg = localImages.find(x => x.id === remoteImg.id);
           if (localImg) {
-            // Préserver les données locales non stockées dans Firestore
             remoteImg.dataUrl         = localImg.dataUrl         || null;
             remoteImg.originalDataUrl = localImg.originalDataUrl || null;
           }
-          // Écrire sans déclencher ps:dbput (pour éviter boucle)
           await new Promise((res,rej) => {
             const r = db.transaction('images','readwrite').objectStore('images').put(remoteImg);
             r.onsuccess = () => res(); r.onerror = rej;
           });
         }
-        // Reconstruire images[] depuis IndexedDB (source de vérité)
         images = await dbGetAll('images');
       } else {
-        // Autres collections : écrire chaque doc distant (merge, pas remplacement)
+        // Autres collections : écrire les docs Firestore (store déjà vidé)
         for (const item of remoteItems) {
           await new Promise((res,rej) => {
             const r = db.transaction(col,'readwrite').objectStore(col).put(item);
             r.onsuccess = () => res(); r.onerror = rej;
           });
         }
-        // Recharger depuis IndexedDB
         const updated = await dbGetAll(col);
         if      (col === 'prenoms') prenoms = updated;
         else if (col === 'tags')    tags    = updated;
