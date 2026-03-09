@@ -470,9 +470,13 @@ function fbUpdateUI() {
     if (email) email.textContent = fbUser.email || '';
     if (syncRow) syncRow.style.display = '';
     fbSetSyncStatus('ok');
+    const cloudResetRow = document.getElementById('btn-reset-cloud-row');
+    if (cloudResetRow) cloudResetRow.style.display = '';
   } else {
     unlogged.style.display = '';
     logged.style.display   = 'none';
+    const cloudResetRow = document.getElementById('btn-reset-cloud-row');
+    if (cloudResetRow) cloudResetRow.style.display = 'none';
     if (syncRow) syncRow.style.display = 'none';
     fbSetSyncStatus('offline');
   }

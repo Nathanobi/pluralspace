@@ -661,6 +661,42 @@ document.getElementById('btn-reset-all').addEventListener('click', () => {
   });
 });
 
+document.getElementById('btn-reset-cloud').addEventListener('click', () => {
+  openConfirm('⚠ Vider TOUTES les données Firestore ? Les données locales ne seront pas touchées.', () => {
+    openConfirm('Confirmer : supprimer définitivement le cloud ?', async () => {
+      const btn = document.getElementById('btn-reset-cloud');
+      btn.disabled = true;
+      btn.textContent = '⏳ Suppression…';
+      try {
+        const COLS = ['prenoms','tags','proxys','profils','images'];
+        let total = 0;
+        for (const col of COLS) {
+          const snap = await fbColRef(col).get();
+          if (snap.empty) continue;
+          const BATCH = 450; // limite Firestore
+          const docs  = [];
+          snap.forEach(d => docs.push(d.ref));
+          for (let i = 0; i < docs.length; i += BATCH) {
+            const batch = fbDb.batch();
+            docs.slice(i, i + BATCH).forEach(ref => batch.delete(ref));
+            await batch.commit();
+            total += Math.min(BATCH, docs.length - i);
+            btn.textContent = `⏳ ${total} supprimés…`;
+          }
+        }
+        // Réinitialiser lastSync pour forcer un push complet au prochain "Envoyer tout"
+        localStorage.removeItem('ps-last-sync');
+        toast(`Cloud vidé — ${total} document(s) supprimé(s).`, 'success');
+        btn.textContent = '☁ Vider le cloud';
+      } catch(e) {
+        toast('Erreur : ' + e.message, 'error');
+        btn.textContent = '☁ Vider le cloud';
+      }
+      btn.disabled = false;
+    });
+  });
+});
+
 // ── CLÉ IMGBB ──
 // IMGBB_KEY_STORAGE est déclaré dans images.js — on le réutilise ici directement
 
