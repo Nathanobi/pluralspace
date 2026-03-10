@@ -395,8 +395,10 @@ async function saveImage() {
     if (dataUrl&&dataUrl.startsWith('data:image')) {
       img.dataUrl=dataUrl; img.isCropped=isCropped;
       if(currentOriginalDataUrl) img.originalDataUrl=currentOriginalDataUrl;
-      // Si l'image a changé, on invalide l'URL hébergée
-      if (img.hostedUrl && currentOriginalDataUrl) { img.hostedUrl = null; }
+      // Invalider hostedUrl seulement si l'image a changé ET qu'on n'a pas re-uploadé
+      if (img.hostedUrl && !currentHostedUrl && currentOriginalDataUrl && dataUrl !== img.dataUrl) { img.hostedUrl = null; }
+      // Appliquer le nouvel hostedUrl si uploadé manuellement pendant cette session
+      if (currentHostedUrl) { img.hostedUrl = currentHostedUrl; }
     }
     img.prenomId=selectedPrenomForImage?selectedPrenomForImage.id:null;
     img.tags=selectedTagsForImage.slice();
