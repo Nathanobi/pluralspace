@@ -5,7 +5,7 @@
 // ── CONFIG ──
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyDS7qaE9sCfGqIYlQHQOq0Z-wuAbE3acKI",
-  authDomain:        "nathanobi.github.io",
+  authDomain:        "plural-space.firebaseapp.com",
   projectId:         "plural-space",
   storageBucket:     "plural-space.firebasestorage.app",
   messagingSenderId: "543388676990",
@@ -94,9 +94,7 @@ async function fbSignIn() {
     // Sur iOS Safari normal : signInWithRedirect fonctionne mieux (popup souvent bloqué)
     // Sur Android/Desktop : signInWithPopup (plus fluide)
     if (isIOS) {
-      // iOS (PWA standalone ou Safari) : toujours redirect
-      // signInWithPopup est bloqué silencieusement par WebKit sur iOS
-      // Le redirect revient sur la même URL → getRedirectResult() dans fbInit gère le retour
+      // iOS : redirect (plus fiable que popup sur WebKit)
       localStorage.setItem('ps-auth-redirect-pending', '1');
       await fbAuth.signInWithRedirect(provider);
     } else {
@@ -123,6 +121,26 @@ async function fbSignOut() {
 
 // Observer l'état de connexion
 function fbWatchAuthState() {
+  // Sur iOS PWA : écouter le retour au premier plan pour relire l'état auth
+  // (après que l'utilisatrice ait fait l'auth dans Safari et soit revenue)
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent) && window.navigator.standalone) {
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && localStorage.getItem('ps-auth-redirect-pending')) {
+        localStorage.removeItem('ps-auth-redirect-pending');
+        try {
+          const result = await fbAuth.getRedirectResult();
+          if (result && result.user) {
+            toast('Connectée avec Google ✓', 'success');
+          }
+        } catch(e) {
+          if (e.code !== 'auth/no-auth-event' && e.code !== 'auth/null-user') {
+            console.warn('[Firebase] visibilitychange getRedirectResult:', e.code);
+          }
+        }
+      }
+    });
+  }
+
   fbAuth.onAuthStateChanged(async user => {
     if (user) {
       fbUser = user;
