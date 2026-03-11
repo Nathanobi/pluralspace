@@ -66,7 +66,7 @@ async function fbInit() {
       if (e.code !== 'auth/no-auth-event') {
         console.warn('[Firebase] getRedirectResult :', e.code);
         if (e.code === 'auth/unauthorized-domain') {
-          toast('Domaine non autorisé — contactez l'administratrice.', 'error');
+          toast("Domaine non autorisé — contactez l'administratrice.", 'error');
         } else if (e.code !== 'auth/null-user') {
           toast('Erreur de connexion : ' + e.code, 'error');
         }
