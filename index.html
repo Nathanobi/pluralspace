@@ -708,7 +708,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.49</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.50</button>
       </div>
 
       <!-- Statistiques -->
@@ -1634,19 +1634,54 @@
 <script src="config.js" defer></script>
 <script src="firebase.js" defer></script>
   <script src="app.js" defer></script>
-  <!-- ERUDA debug console — iOS uniquement, temporaire -->
+  <!-- DEBUG console iOS — temporaire -->
   <script>
     if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-      var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/eruda';
-      s.onload = function() { eruda.init(); };
-      document.body.appendChild(s);
+      // Intercepter toutes les erreurs avant même Eruda
+      var _debugLogs = [];
+      var _origError = console.error.bind(console);
+      var _origWarn  = console.warn.bind(console);
+      var _origLog   = console.log.bind(console);
+      window.onerror = function(msg, src, line, col, err) {
+        _debugLogs.push('❌ ' + msg + ' (' + src + ':' + line + ')');
+        showDebugPanel();
+      };
+      window.onunhandledrejection = function(e) {
+        _debugLogs.push('❌ Promise: ' + (e.reason && (e.reason.message || e.reason.code || e.reason)));
+        showDebugPanel();
+      };
+      console.error = function() { var m = Array.from(arguments).join(' '); _debugLogs.push('❌ ' + m); _origError(m); showDebugPanel(); };
+      console.warn  = function() { var m = Array.from(arguments).join(' '); _debugLogs.push('⚠ ' + m);  _origWarn(m);  };
+      console.log   = function() { var m = Array.from(arguments).join(' '); _debugLogs.push('ℹ ' + m);  _origLog(m);   };
+
+      function showDebugPanel() {
+        var panel = document.getElementById('_debug_panel');
+        if (!panel) {
+          panel = document.createElement('div');
+          panel.id = '_debug_panel';
+          panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:50vh;overflow-y:auto;background:#111;color:#eee;font-size:11px;font-family:monospace;z-index:99999;padding:8px;border-top:2px solid red;';
+          var close = document.createElement('button');
+          close.textContent = '✕ Fermer';
+          close.style.cssText = 'position:sticky;top:0;float:right;background:red;color:#fff;border:none;padding:4px 8px;cursor:pointer;font-size:12px;';
+          close.onclick = function() { panel.remove(); };
+          panel.appendChild(close);
+          document.body.appendChild(panel);
+        }
+        // Afficher tous les logs
+        var content = panel.querySelector('#_debug_content');
+        if (!content) { content = document.createElement('div'); content.id = '_debug_content'; panel.appendChild(content); }
+        content.innerHTML = _debugLogs.map(function(l) { return '<div style="border-bottom:1px solid #333;padding:3px 0;">' + l + '</div>'; }).join('');
+        panel.scrollTop = panel.scrollHeight;
+      }
+
+      // Forcer l'affichage même sans erreur après 2s pour voir les logs de démarrage
+      setTimeout(function() { if (_debugLogs.length > 0) showDebugPanel(); }, 2000);
     }
   </script>
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.49';
+  const APP_VERSION = '1.50';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {
