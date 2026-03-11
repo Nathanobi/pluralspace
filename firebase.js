@@ -5,7 +5,7 @@
 // ── CONFIG ──
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyDS7qaE9sCfGqIYlQHQOq0Z-wuAbE3acKI",
-  authDomain:        "plural-space.firebaseapp.com",
+  authDomain:        "nathanobi.github.io",
   projectId:         "plural-space",
   storageBucket:     "plural-space.firebasestorage.app",
   messagingSenderId: "543388676990",
@@ -42,14 +42,34 @@ async function fbInit() {
     // Gérer le retour après signInWithRedirect (PWA iOS)
     // On attend le résultat avant de démarrer le watcher d'auth
     try {
+      // Afficher un indicateur si un redirect était en cours
+      const redirectPending = localStorage.getItem('ps-auth-redirect-pending');
+      if (redirectPending) {
+        localStorage.removeItem('ps-auth-redirect-pending');
+        // Montrer un toast de chargement
+        const el = document.getElementById('toast-container');
+        if (el) {
+          const t = document.createElement('div');
+          t.className = 'toast toast-info';
+          t.textContent = '⏳ Connexion Google en cours…';
+          el.appendChild(t);
+          setTimeout(() => t.remove(), 4000);
+        }
+      }
       const result = await fbAuth.getRedirectResult();
       if (result && result.user) {
         console.log('[Firebase] Retour redirect OK :', result.user.email);
+        toast('Connectée avec Google ✓', 'success');
       }
     } catch(e) {
       // auth/no-auth-event = pas de redirect en cours, c'est normal
       if (e.code !== 'auth/no-auth-event') {
         console.warn('[Firebase] getRedirectResult :', e.code);
+        if (e.code === 'auth/unauthorized-domain') {
+          toast('Domaine non autorisé — contactez l'administratrice.', 'error');
+        } else if (e.code !== 'auth/null-user') {
+          toast('Erreur de connexion : ' + e.code, 'error');
+        }
       }
     }
     fbWatchAuthState();
@@ -73,11 +93,11 @@ async function fbSignIn() {
     // → on force signInWithPopup qui reste dans le WKWebView de la PWA
     // Sur iOS Safari normal : signInWithRedirect fonctionne mieux (popup souvent bloqué)
     // Sur Android/Desktop : signInWithPopup (plus fluide)
-    if (isIOS && isStandalone) {
-      // PWA iOS — popup reste dans le contexte de la PWA
-      await fbAuth.signInWithPopup(provider);
-    } else if (isIOS) {
-      // Safari iOS normal — redirect (popup bloqué par défaut)
+    if (isIOS) {
+      // iOS (PWA standalone ou Safari) : toujours redirect
+      // signInWithPopup est bloqué silencieusement par WebKit sur iOS
+      // Le redirect revient sur la même URL → getRedirectResult() dans fbInit gère le retour
+      localStorage.setItem('ps-auth-redirect-pending', '1');
       await fbAuth.signInWithRedirect(provider);
     } else {
       // Android / Desktop
