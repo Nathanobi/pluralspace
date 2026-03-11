@@ -29,6 +29,7 @@ const SYNC_DEBOUNCE_MS = 800;
 
 // ── INIT SDK (chargé via CDN dans index.html) ──
 async function fbInit() {
+  console.log('[Firebase] fbInit démarré');
   try {
     fbApp     = firebase.initializeApp(FIREBASE_CONFIG);
     fbAuth    = firebase.auth();
@@ -38,7 +39,7 @@ async function fbInit() {
     try {
       await fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     } catch(e) { console.warn('[Firebase] setPersistence :', e.code); }
-    console.log('[Firebase] Initialisé ✓');
+    console.log('[Firebase] Initialisé ✓ — auth=' + (fbAuth?'OK':'NULL'));
     // Gérer le retour après signInWithRedirect (PWA iOS)
     // On attend le résultat avant de démarrer le watcher d'auth
     try {
@@ -82,7 +83,12 @@ async function fbInit() {
 
 // Connexion Google
 async function fbSignIn() {
-  if (!fbAuth) return;
+  console.log('[Auth] fbSignIn appelé, fbAuth=' + (fbAuth ? 'OK' : 'NULL'));
+  if (!fbAuth) {
+    console.error('[Auth] fbAuth est null — Firebase non initialisé');
+    toast('Erreur : Firebase non initialisé. Rechargez la page.', 'error');
+    return;
+  }
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });

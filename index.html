@@ -708,7 +708,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.50</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.51</button>
       </div>
 
       <!-- Statistiques -->
@@ -1674,14 +1674,17 @@
         panel.scrollTop = panel.scrollHeight;
       }
 
-      // Forcer l'affichage même sans erreur après 2s pour voir les logs de démarrage
-      setTimeout(function() { if (_debugLogs.length > 0) showDebugPanel(); }, 2000);
+      // Forcer l'affichage après 3s pour voir les logs de démarrage (même sans erreur)
+      setTimeout(function() { showDebugPanel(); }, 3000);
+      // Aussi afficher à chaque nouveau log
+      var _origLog2 = console.log.bind(console);
+      console.log = function() { var m = Array.from(arguments).join(' '); _debugLogs.push('ℹ ' + m); _origLog2(m); showDebugPanel(); };
     }
   </script>
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.50';
+  const APP_VERSION = '1.51';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {
