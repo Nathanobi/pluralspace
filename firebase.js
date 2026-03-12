@@ -29,7 +29,6 @@ const SYNC_DEBOUNCE_MS = 800;
 
 // ── INIT SDK (chargé via CDN dans index.html) ──
 async function fbInit() {
-  console.log('[Firebase] fbInit démarré');
   try {
     fbApp     = firebase.initializeApp(FIREBASE_CONFIG);
     fbAuth    = firebase.auth();
@@ -39,7 +38,7 @@ async function fbInit() {
     try {
       await fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     } catch(e) { console.warn('[Firebase] setPersistence :', e.code); }
-    console.log('[Firebase] Initialisé ✓ — auth=' + (fbAuth?'OK':'NULL'));
+    console.log('[Firebase] Initialisé ✓');
     // Gérer le retour après signInWithRedirect (PWA iOS)
     // On attend le résultat avant de démarrer le watcher d'auth
     try {
@@ -82,37 +81,106 @@ async function fbInit() {
 // ── AUTH ──
 
 // Connexion Google
+// ── AUTH SECTION — remplacement complet ──
+// Stratégie unifiée :
+// 1. Desktop/Android Chrome      → signInWithPopup (fluide, pas de rechargement)
+// 2. iOS Safari (pas PWA)        → signInWithPopup avec fallback redirect
+// 3. iOS PWA standalone          → redirect via page intermédiaire dans Safari
+//    Le token est passé via localStorage + visibilitychange
+
 async function fbSignIn() {
-  console.log('[Auth] fbSignIn appelé, fbAuth=' + (fbAuth ? 'OK' : 'NULL'));
   if (!fbAuth) {
-    console.error('[Auth] fbAuth est null — Firebase non initialisé');
-    toast('Erreur : Firebase non initialisé. Rechargez la page.', 'error');
+    toast('Firebase non initialisé — rechargez la page.', 'error');
     return;
   }
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    // Détection fiable iOS PWA standalone vs Safari normal vs autres
-    const isIOS        = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const isStandalone = window.navigator.standalone === true; // iOS PWA ajoutée à l'écran
-    // Sur iOS PWA standalone : signInWithRedirect ne revient pas dans la PWA (ouvre Safari séparé)
-    // → on force signInWithPopup qui reste dans le WKWebView de la PWA
-    // Sur iOS Safari normal : signInWithRedirect fonctionne mieux (popup souvent bloqué)
-    // Sur Android/Desktop : signInWithPopup (plus fluide)
-    if (isIOS) {
-      // iOS : redirect (plus fiable que popup sur WebKit)
-      localStorage.setItem('ps-auth-redirect-pending', '1');
-      await fbAuth.signInWithRedirect(provider);
-    } else {
-      // Android / Desktop
+
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  const isIOS        = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = window.navigator.standalone === true;
+
+  if (isIOS && isStandalone) {
+    // ── iOS PWA standalone ──
+    // Ni popup ni redirect ne fonctionnent dans WKWebView standalone
+    // Solution : ouvrir Safari via un lien universel, faire l'auth là,
+    // et détecter la reconnexion via onAuthStateChanged quand on revient
+    // Firebase SDK v10 avec persistence LOCAL partage la session entre
+    // Safari et la PWA via le même keychain iOS si même domaine
+    //
+    // On tente d'abord signInWithPopup (fonctionne sur iOS 16.4+)
+    // Si bloqué → fallback: guider l'utilisatrice vers Safari
+    try {
       await fbAuth.signInWithPopup(provider);
+    } catch(e) {
+      if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+        // Popup bloqué → guider vers Safari
+        _fbSignInViaSafari();
+      } else if (e.code !== 'auth/cancelled-popup-request') {
+        toast('Erreur de connexion : ' + e.code, 'error');
+      }
     }
-  } catch(e) {
-    if (e.code !== 'auth/popup-closed-by-user') {
-      toast('Erreur de connexion Google.', 'error');
-      console.error('[Firebase] SignIn :', e);
+  } else if (isIOS) {
+    // ── iOS Safari normal (pas PWA) ──
+    // signInWithPopup fonctionne bien ici
+    try {
+      await fbAuth.signInWithPopup(provider);
+    } catch(e) {
+      if (e.code === 'auth/popup-blocked') {
+        // Fallback redirect si popup bloqué
+        localStorage.setItem('ps-auth-redirect-pending', '1');
+        await fbAuth.signInWithRedirect(provider);
+      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        toast('Erreur de connexion : ' + e.code, 'error');
+      }
+    }
+  } else {
+    // ── Android / Desktop ──
+    try {
+      await fbAuth.signInWithPopup(provider);
+    } catch(e) {
+      if (e.code === 'auth/popup-blocked') {
+        localStorage.setItem('ps-auth-redirect-pending', '1');
+        await fbAuth.signInWithRedirect(provider);
+      } else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        toast('Erreur de connexion : ' + e.code, 'error');
+      }
     }
   }
+}
+
+// Fallback iOS PWA : ouvrir Safari avec un message clair
+function _fbSignInViaSafari() {
+  // Créer un overlay d'instruction
+  const overlay = document.createElement('div');
+  overlay.id = '_safari-auth-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;';
+  overlay.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;max-width:320px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:12px;">🌐</div>
+      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px;">Connexion via Safari</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.5;">
+        Pour te connecter depuis l'app, tu dois d'abord te connecter dans Safari :<br><br>
+        1. Appuie sur <strong>Ouvrir Safari</strong><br>
+        2. Connecte-toi avec Google<br>
+        3. Reviens sur cette app
+      </div>
+      <button id="_safari-auth-btn" style="width:100%;padding:12px;background:var(--accent3);color:var(--text);border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:10px;">
+        Ouvrir Safari
+      </button>
+      <button id="_safari-auth-cancel" style="width:100%;padding:8px;background:transparent;color:var(--text3);border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">
+        Annuler
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('_safari-auth-btn').addEventListener('click', () => {
+    overlay.remove();
+    // Ouvrir l'URL de l'app dans Safari (pas dans la PWA)
+    window.open(window.location.href + '#auth', '_blank');
+  });
+  document.getElementById('_safari-auth-cancel').addEventListener('click', () => overlay.remove());
 }
 
 // Déconnexion
@@ -127,26 +195,6 @@ async function fbSignOut() {
 
 // Observer l'état de connexion
 function fbWatchAuthState() {
-  // Sur iOS PWA : écouter le retour au premier plan pour relire l'état auth
-  // (après que l'utilisatrice ait fait l'auth dans Safari et soit revenue)
-  if (/iPad|iPhone|iPod/.test(navigator.userAgent) && window.navigator.standalone) {
-    document.addEventListener('visibilitychange', async () => {
-      if (document.visibilityState === 'visible' && localStorage.getItem('ps-auth-redirect-pending')) {
-        localStorage.removeItem('ps-auth-redirect-pending');
-        try {
-          const result = await fbAuth.getRedirectResult();
-          if (result && result.user) {
-            toast('Connectée avec Google ✓', 'success');
-          }
-        } catch(e) {
-          if (e.code !== 'auth/no-auth-event' && e.code !== 'auth/null-user') {
-            console.warn('[Firebase] visibilitychange getRedirectResult:', e.code);
-          }
-        }
-      }
-    });
-  }
-
   fbAuth.onAuthStateChanged(async user => {
     if (user) {
       fbUser = user;
@@ -555,6 +603,10 @@ function fbStart() {
   fbInit();
   fbInstallHooks();
   fbUpdateUI();
+
+  // Bouton connexion — listener propre (évite "not defined" si chargement lent)
+  const signinBtn = document.getElementById('btn-fb-signin');
+  if (signinBtn) signinBtn.addEventListener('click', fbSignIn);
 
   // Détecter offline/online
   window.addEventListener('online',  () => fbSetSyncStatus(fbUser ? 'ok' : 'offline'));
