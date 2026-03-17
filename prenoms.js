@@ -182,7 +182,7 @@ function renderTagFilters() {
 }
 
 // ── RENDER PRÉNOMS ──
-let currentSort = 'alpha';
+let currentSort = 'chrono';
 let searchQuery = '';
 let filterNoImage = false, filterNoProxy = false, filterNoProfil = false;
 

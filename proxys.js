@@ -1,5 +1,5 @@
 // ── PROXYS ──
-let proxySort = 'alpha-name', proxySearch = '';
+let proxySort = 'chrono', proxySearch = '';
 let proxyTagFilterMap = new Map();
 let editingProxyId = null, selectedPrenomForProxy = null;
 // Stack de modaux proxy ouverts (pour éviter la surcharge)

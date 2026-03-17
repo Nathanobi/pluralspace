@@ -454,10 +454,17 @@ function groupSignature(t, memberIds) {
 // Récupère l'avatar URL d'un profil
 function getAvatarUrl(pr, prenom) {
   const imgObj = pr.imageId ? images.find(x => x.id === pr.imageId) : null;
-  if (imgObj && imgObj.hostedUrl) return imgObj.hostedUrl;
+  if (imgObj) {
+    // Priorité : URL de l'image recadrée si disponible
+    if (imgObj.isCropped && imgObj.croppedHostedUrl) return imgObj.croppedHostedUrl;
+    if (imgObj.hostedUrl) return imgObj.hostedUrl;
+  }
   if (prenom && prenom.imageId) {
     const img2 = images.find(x => x.id === prenom.imageId);
-    if (img2 && img2.hostedUrl) return img2.hostedUrl;
+    if (img2) {
+      if (img2.isCropped && img2.croppedHostedUrl) return img2.croppedHostedUrl;
+      if (img2.hostedUrl) return img2.hostedUrl;
+    }
   }
   return null;
 }

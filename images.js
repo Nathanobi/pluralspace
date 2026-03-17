@@ -168,6 +168,48 @@ document.querySelectorAll('[data-img-sort]').forEach(btn => {
 });
 document.getElementById('image-search').addEventListener('input', e => { imgSearch=e.target.value.trim(); renderImages(); });
 
+// ── PINTEREST URL ──
+document.getElementById('img-pinterest-input')?.addEventListener('input', async function() {
+  const url   = this.value.trim();
+  const status = document.getElementById('img-pinterest-status');
+  if (!url) { status.style.display='none'; return; }
+  if (!url.includes('pinterest') && !url.includes('pin.it') && !url.includes('pinimg.com')) {
+    status.style.display=''; status.style.color='var(--danger)';
+    status.textContent = '⚠ Ce lien ne semble pas être un lien Pinterest.'; return;
+  }
+  // Tenter de charger l'image directement (fonctionne pour les URLs d'images pinimg.com)
+  if (url.includes('pinimg.com') || url.match(/\.(?:jpg|jpeg|png|webp|gif)$/i)) {
+    status.style.display=''; status.style.color='var(--text3)';
+    status.textContent = "⏳ Chargement de l'image…";
+    try {
+      const dataUrl = await fetchImageAsDataUrl(url);
+      if (dataUrl) {
+        // Injecter l'image dans la zone de preview
+        const preview = document.getElementById('img-preview');
+        const dropContent = document.getElementById('img-drop-content');
+        const previewWrap  = document.getElementById('img-preview-wrap');
+        preview.src = dataUrl;
+        preview.dataset.showingOriginal = 'false';
+        currentOriginalDataUrl = dataUrl;
+        currentIsCropped = false;
+        currentHostedUrl = null;
+        dropContent.style.display = 'none';
+        previewWrap.style.display = '';
+        showHostedZone(null);
+        updateCropStatusUI(false, null);
+        status.style.color='var(--success)';
+        status.textContent = '\u2713 Image chargée depuis Pinterest !';
+        return;
+      }
+    } catch(e) {}
+    status.style.color='var(--warn)';
+    status.textContent = "⚠ Image non accessible directement. L'URL Pinterest sera sauvegardée.";
+  } else {
+    status.style.display=''; status.style.color='var(--text3)';
+    status.textContent = "ℹ URL Pinterest sauvegardée. Glissez aussi l'image manuellement si besoin.";
+  }
+});
+
 // ── MODAL IMAGE ──
 function openImageModal(img) {
   img = img||null;
@@ -177,6 +219,11 @@ function openImageModal(img) {
   currentOriginalDataUrl = img ? (img.originalDataUrl||null) : null;
   currentIsCropped       = img ? (img.isCropped || false) : false;
   currentHostedUrl       = img ? (img.hostedUrl || null) : null;
+  // Pinterest
+  const pinInput = document.getElementById('img-pinterest-input');
+  const pinStatus = document.getElementById('img-pinterest-status');
+  if (pinInput)  { pinInput.value = img ? (img.pinterestUrl || '') : ''; }
+  if (pinStatus) { pinStatus.style.display = 'none'; pinStatus.textContent = ''; }
   document.getElementById('modal-image-title').textContent = img ? 'Modifier l\'image' : 'Ajouter une image';
   document.getElementById('img-drop-content').style.display = '';
   document.getElementById('img-preview-wrap').style.display = 'none';
@@ -402,6 +449,12 @@ async function saveImage() {
     }
     img.prenomId=selectedPrenomForImage?selectedPrenomForImage.id:null;
     img.tags=selectedTagsForImage.slice();
+    const pinVal = (document.getElementById('img-pinterest-input')?.value || '').trim();
+    if (pinVal) img.pinterestUrl = pinVal; else delete img.pinterestUrl;
+    // Si recadrée et pas encore de croppedHostedUrl → uploader le dataUrl recadré
+    if (img.isCropped && dataUrl && dataUrl.startsWith('data:image') && !img.croppedHostedUrl && getImgbbKey()) {
+      try { img.croppedHostedUrl = await uploadToImgbb(dataUrl); } catch(e) {}
+    }
     await dbPut('images',img);
     // Synchroniser les tags de l'image vers le prénom associé
     if (selectedPrenomForImage) {
@@ -416,11 +469,14 @@ async function saveImage() {
     }
     toast('Image modifiée.','success'); logHistory('Image modifiée', 'image');
   } else {
-    const img={ id:uid(), dataUrl, isCropped, originalDataUrl:currentOriginalDataUrl||dataUrl, prenomId:selectedPrenomForImage?selectedPrenomForImage.id:null, tags:selectedTagsForImage.slice(), createdAt:Date.now(), hostedUrl: currentHostedUrl };
+    const pinValNew = (document.getElementById('img-pinterest-input')?.value || '').trim();
+    const img={ id:uid(), dataUrl, isCropped, originalDataUrl:currentOriginalDataUrl||dataUrl, prenomId:selectedPrenomForImage?selectedPrenomForImage.id:null, tags:selectedTagsForImage.slice(), createdAt:Date.now(), hostedUrl: currentHostedUrl, pinterestUrl: pinValNew||undefined };
     // Auto-upload imgbb si clé disponible ET pas déjà hébergée manuellement
     if (!img.hostedUrl && getImgbbKey()) {
       try {
         img.hostedUrl = await uploadToImgbb(dataUrl);
+        // Si recadrée : stocker aussi l'URL recadrée séparément
+        if (isCropped) img.croppedHostedUrl = img.hostedUrl;
         toast('Image ajoutée et hébergée ✓','success');
       } catch(e) {
         toast('Image ajoutée (hébergement échoué — sync limitée)','info');

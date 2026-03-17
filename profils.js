@@ -1,5 +1,5 @@
 // ── PROFILS ──
-let profilSort = 'alpha', profilSearch = '';
+let profilSort = 'chrono', profilSearch = '';
 let filterProfilIncomplete = false, filterHorsPK = false;
 let profilTagFilterMap = new Map();
 let editingProfilId = null, selectedPrenomForProfil = null;

@@ -708,7 +708,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.52</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.53</button>
       </div>
 
       <!-- Statistiques -->
@@ -1007,8 +1007,62 @@
 
         </div>
       </div>
-
-      <!-- APPARENCE -->
+      <div class="config-section">
+        <div class="config-section-title">⟡ Connexion PluralKit</div>
+        <div class="config-card">
+          <!-- Token -->
+          <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
+            <div class="config-row-label">
+              <div class="config-row-name">Token d'authentification</div>
+              <div class="config-row-desc">Votre token PluralKit personnel (Discord : <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;">pk;token</code>).
+                Il est stocké uniquement en local sur votre appareil.</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="password" class="input" id="pk-token-input" placeholder="Collez votre token PK ici…"
+                     style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" />
+              <button class="btn btn-primary btn-sm" id="btn-save-pk-token">Connecter</button>
+              <button class="btn btn-ghost btn-sm" id="btn-clear-pk-token">Déconnecter</button>
+            </div>
+            <div id="pk-token-status" style="font-size:12px;color:var(--text3);"></div>
+          </div>
+          <!-- Import depuis PK -->
+          <div class="config-row" style="border-top:1px solid var(--border2);margin-top:12px;padding-top:16px;">
+            <div class="config-row-label">
+              <div class="config-row-name">Importer depuis PluralKit</div>
+              <div class="config-row-desc">Récupère les membres de votre système PK et les importe comme prénoms + profils. Les existants ne seront pas écrasés.</div>
+            </div>
+            <div class="config-row-control">
+              <button class="btn btn-ghost" id="btn-pk-import" disabled>⬇ Importer</button>
+            </div>
+          </div>
+          <div id="pk-import-log" style="display:none;margin-top:12px;padding:12px 16px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;line-height:1.8;color:var(--text2);max-height:200px;overflow-y:auto;"></div>
+        </div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">⟡ Export PluralKit</div>
+        <div class="config-card">
+          <div class="config-row">
+            <div class="config-row-label">
+              <div class="config-row-name">Générer un fichier PluralKit</div>
+              <div class="config-row-desc">Télécharge un JSON à importer manuellement dans PluralKit</div>
+            </div>
+            <div class="config-row-control">
+              <button class="btn btn-primary" id="btn-export-pk">⟡ Télécharger JSON</button>
+            </div>
+          </div>
+          <div class="config-row">
+            <div class="config-row-label">
+              <div class="config-row-name">Envoyer directement à PluralKit</div>
+              <div class="config-row-desc">Crée ou met à jour les membres via l'API PluralKit (token requis). Les avatars sont inclus si une URL d'image est renseignée.</div>
+            </div>
+            <div class="config-row-control">
+              <button class="btn btn-primary" id="btn-export-pk-api">⟡ Envoyer à PK</button>
+            </div>
+          </div>
+          <div id="pk-export-info" style="display:none;margin-top:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:13px;color:var(--text2);line-height:1.6;"></div>
+          <div id="pk-push-log" style="display:none;margin-top:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);line-height:1.8;max-height:260px;overflow-y:auto;font-family:monospace;"></div>
+        </div>
+      </div>
       <div class="config-section">
         <div class="config-section-title">◈ Apparence</div>
         <div class="config-card">
@@ -1076,8 +1130,60 @@
 
         </div>
       </div>
+      <div class="config-section">
+        <div class="config-section-title">✧ Images</div>
+        <div class="config-card">
 
-      <!-- DONNÉES -->
+          <!-- Chemin mémorisé (saisie manuelle) -->
+          <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
+            <div class="config-row-label">
+              <div class="config-row-name">Chemin d'accès favori</div>
+              <div class="config-row-desc">Mémorisez le chemin de votre dossier pour vous en souvenir facilement (indication visuelle uniquement).</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="text" class="input" id="img-folder-path"
+                     placeholder="ex : Images/Système…"
+                     style="flex:1;min-width:200px;font-family:monospace;font-size:12px;" autocomplete="off" />
+              <button class="btn btn-primary btn-sm" id="btn-save-img-folder">Sauvegarder</button>
+              <button class="btn btn-ghost btn-sm" id="btn-clear-img-folder">✕</button>
+            </div>
+            <div id="img-folder-status" style="font-size:12px;color:var(--text3);"></div>
+          </div>
+
+          <!-- Import dossier entier -->
+          <div class="config-row" style="border-top:1px solid var(--border2);margin-top:12px;padding-top:16px;">
+            <div class="config-row-label">
+              <div class="config-row-name">Importer un dossier d'images</div>
+              <div class="config-row-desc">Sélectionnez un dossier pour importer toutes ses images en une fois dans la galerie.</div>
+            </div>
+            <div class="config-row-control">
+              <button class="btn btn-ghost" id="btn-import-folder">📁 Choisir un dossier</button>
+              <input type="file" id="img-folder-import-picker" accept="image/*" multiple webkitdirectory style="display:none;" />
+            </div>
+          </div>
+          <div id="img-folder-import-log" style="display:none;margin-top:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);line-height:1.8;"></div>
+
+        </div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">✧ Hébergement d'images</div>
+        <div class="config-card">
+          <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
+            <div class="config-row-label">
+              <div class="config-row-name">Clé API imgbb</div>
+              <div class="config-row-desc">Permet d'héberger automatiquement vos images et d'obtenir un lien URL pour PluralKit.
+                Gratuit — <a href="https://api.imgbb.com/" target="_blank" rel="noopener" style="color:var(--accent3);">Obtenir une clé sur api.imgbb.com</a></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="password" class="input" id="imgbb-key-input" placeholder="Collez votre clé API ici…"
+                     style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" />
+              <button class="btn btn-primary btn-sm" id="btn-save-imgbb-key">Sauvegarder</button>
+              <button class="btn btn-ghost btn-sm" id="btn-clear-imgbb-key">Effacer</button>
+            </div>
+            <div id="imgbb-key-status" style="font-size:12px;color:var(--text3);"></div>
+          </div>
+        </div>
+      </div>
       <div class="config-section">
         <div class="config-section-title">◇ Données</div>
         <div class="config-card">
@@ -1115,126 +1221,6 @@
           </div>
         </div>
       </div>
-
-      <!-- DOSSIER IMAGES -->
-      <div class="config-section">
-        <div class="config-section-title">✧ Images</div>
-        <div class="config-card">
-
-          <!-- Chemin mémorisé (saisie manuelle) -->
-          <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
-            <div class="config-row-label">
-              <div class="config-row-name">Chemin d'accès favori</div>
-              <div class="config-row-desc">Mémorisez le chemin de votre dossier pour vous en souvenir facilement (indication visuelle uniquement).</div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <input type="text" class="input" id="img-folder-path"
-                     placeholder="ex : Images/Système…"
-                     style="flex:1;min-width:200px;font-family:monospace;font-size:12px;" autocomplete="off" />
-              <button class="btn btn-primary btn-sm" id="btn-save-img-folder">Sauvegarder</button>
-              <button class="btn btn-ghost btn-sm" id="btn-clear-img-folder">✕</button>
-            </div>
-            <div id="img-folder-status" style="font-size:12px;color:var(--text3);"></div>
-          </div>
-
-          <!-- Import dossier entier -->
-          <div class="config-row" style="border-top:1px solid var(--border2);margin-top:12px;padding-top:16px;">
-            <div class="config-row-label">
-              <div class="config-row-name">Importer un dossier d'images</div>
-              <div class="config-row-desc">Sélectionnez un dossier pour importer toutes ses images en une fois dans la galerie.</div>
-            </div>
-            <div class="config-row-control">
-              <button class="btn btn-ghost" id="btn-import-folder">📁 Choisir un dossier</button>
-              <input type="file" id="img-folder-import-picker" accept="image/*" multiple webkitdirectory style="display:none;" />
-            </div>
-          </div>
-          <div id="img-folder-import-log" style="display:none;margin-top:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);line-height:1.8;"></div>
-
-        </div>
-      </div>
-
-      <!-- HÉBERGEMENT IMAGES -->
-      <div class="config-section">
-        <div class="config-section-title">✧ Hébergement d'images</div>
-        <div class="config-card">
-          <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
-            <div class="config-row-label">
-              <div class="config-row-name">Clé API imgbb</div>
-              <div class="config-row-desc">Permet d'héberger automatiquement vos images et d'obtenir un lien URL pour PluralKit.
-                Gratuit — <a href="https://api.imgbb.com/" target="_blank" rel="noopener" style="color:var(--accent3);">Obtenir une clé sur api.imgbb.com</a></div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <input type="password" class="input" id="imgbb-key-input" placeholder="Collez votre clé API ici…"
-                     style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" />
-              <button class="btn btn-primary btn-sm" id="btn-save-imgbb-key">Sauvegarder</button>
-              <button class="btn btn-ghost btn-sm" id="btn-clear-imgbb-key">Effacer</button>
-            </div>
-            <div id="imgbb-key-status" style="font-size:12px;color:var(--text3);"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- PLURALKIT CONNEXION -->
-      <div class="config-section">
-        <div class="config-section-title">⟡ Connexion PluralKit</div>
-        <div class="config-card">
-          <!-- Token -->
-          <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
-            <div class="config-row-label">
-              <div class="config-row-name">Token d'authentification</div>
-              <div class="config-row-desc">Votre token PluralKit personnel (Discord : <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;">pk;token</code>).
-                Il est stocké uniquement en local sur votre appareil.</div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <input type="password" class="input" id="pk-token-input" placeholder="Collez votre token PK ici…"
-                     style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" />
-              <button class="btn btn-primary btn-sm" id="btn-save-pk-token">Connecter</button>
-              <button class="btn btn-ghost btn-sm" id="btn-clear-pk-token">Déconnecter</button>
-            </div>
-            <div id="pk-token-status" style="font-size:12px;color:var(--text3);"></div>
-          </div>
-          <!-- Import depuis PK -->
-          <div class="config-row" style="border-top:1px solid var(--border2);margin-top:12px;padding-top:16px;">
-            <div class="config-row-label">
-              <div class="config-row-name">Importer depuis PluralKit</div>
-              <div class="config-row-desc">Récupère les membres de votre système PK et les importe comme prénoms + profils. Les existants ne seront pas écrasés.</div>
-            </div>
-            <div class="config-row-control">
-              <button class="btn btn-ghost" id="btn-pk-import" disabled>⬇ Importer</button>
-            </div>
-          </div>
-          <div id="pk-import-log" style="display:none;margin-top:12px;padding:12px 16px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;line-height:1.8;color:var(--text2);max-height:200px;overflow-y:auto;"></div>
-        </div>
-      </div>
-
-      <!-- PLURALKIT EXPORT -->
-      <div class="config-section">
-        <div class="config-section-title">⟡ Export PluralKit</div>
-        <div class="config-card">
-          <div class="config-row">
-            <div class="config-row-label">
-              <div class="config-row-name">Générer un fichier PluralKit</div>
-              <div class="config-row-desc">Télécharge un JSON à importer manuellement dans PluralKit</div>
-            </div>
-            <div class="config-row-control">
-              <button class="btn btn-primary" id="btn-export-pk">⟡ Télécharger JSON</button>
-            </div>
-          </div>
-          <div class="config-row">
-            <div class="config-row-label">
-              <div class="config-row-name">Envoyer directement à PluralKit</div>
-              <div class="config-row-desc">Crée ou met à jour les membres via l'API PluralKit (token requis). Les avatars sont inclus si une URL d'image est renseignée.</div>
-            </div>
-            <div class="config-row-control">
-              <button class="btn btn-primary" id="btn-export-pk-api">⟡ Envoyer à PK</button>
-            </div>
-          </div>
-          <div id="pk-export-info" style="display:none;margin-top:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:13px;color:var(--text2);line-height:1.6;"></div>
-          <div id="pk-push-log" style="display:none;margin-top:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);line-height:1.8;max-height:260px;overflow-y:auto;font-family:monospace;"></div>
-        </div>
-      </div>
-
-      <!-- HISTORIQUE -->
       <div class="config-section">
         <div class="config-section-title">◎ Historique des modifications</div>
         <div class="config-card">
@@ -1251,8 +1237,6 @@
           <div id="history-empty" style="padding:20px;text-align:center;color:var(--text3);font-size:13px;font-style:italic;">Aucune modification enregistrée.</div>
         </div>
       </div>
-
-      <!-- DANGER ZONE -->
       <div class="config-section">
         <div class="config-section-title" style="color:var(--danger);">⚠ Zone de danger</div>
         <div class="config-card" style="border-color:rgba(232,122,122,0.2);">
@@ -1638,7 +1622,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.52';
+  const APP_VERSION = '1.53';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {
