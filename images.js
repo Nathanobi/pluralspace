@@ -193,7 +193,6 @@ document.getElementById('img-pinterest-input')?.addEventListener('change', async
   const status = document.getElementById('img-pinterest-status');
   if (!raw) { status.style.display = 'none'; return; }
 
-  // Validation : doit contenir pinterest, pin.it ou pinimg
   const isPinterest = raw.includes('pinterest') || raw.includes('pin.it') || raw.includes('pinimg.com');
   if (!isPinterest) {
     status.style.display = ''; status.style.color = 'var(--danger)';
@@ -202,53 +201,92 @@ document.getElementById('img-pinterest-input')?.addEventListener('change', async
   }
 
   status.style.display = ''; status.style.color = 'var(--text3)';
-  status.textContent = '\u23f3 Chargement…';
+  status.textContent = '\u23f3 Chargement\u2026';
 
-  // Cas 1 : URL directe d'image (pinimg.com ou extension image)
+  // Construire les URLs candidates à tester (via proxies CORS publics)
+  const proxies = [
+    url => 'https://corsproxy.io/?' + encodeURIComponent(url),
+    url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+    url => url, // tentative directe en dernier
+  ];
+
+  // Cas 1 : URL directe d'image pinimg.com
   if (raw.includes('pinimg.com') || /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(raw)) {
-    try {
-      await _loadImageIntoPreview(raw, raw);
-      status.style.color = 'var(--success)';
-      status.textContent = '\u2713 Image chargée !';
-      return;
-    } catch(e) {}
+    for (const proxy of proxies) {
+      try {
+        await _loadImageIntoPreview(proxy(raw), raw);
+        status.style.color = 'var(--success)';
+        status.textContent = '\u2713 Image chargée !';
+        return;
+      } catch(e) {}
+    }
   }
 
-  // Cas 2 : lien de partage pinterest.com/pin/XXXXX ou pin.it/XXXXX
-  // → utiliser l'API oEmbed Pinterest pour récupérer thumbnail_url
-  try {
-    const oembedUrl = 'https://www.pinterest.com/oembed.json?url=' + encodeURIComponent(raw);
-    const resp = await fetch(oembedUrl);
-    if (resp.ok) {
-      const data = await resp.json();
-      // thumbnail_url est souvent en basse résolution — chercher une version HD
-      let imgUrl = data.thumbnail_url || '';
-      // Tenter la version originale en remplaçant la taille dans l'URL pinimg
-      if (imgUrl.includes('pinimg.com')) {
-        imgUrl = imgUrl.replace(/\/[0-9]+x\//, '/originals/').replace(/\/[0-9]+x[0-9]+\//, '/originals/');
-      }
-      if (imgUrl) {
-        try {
-          await _loadImageIntoPreview(imgUrl, raw);
-          status.style.color = 'var(--success)';
-          status.textContent = '\u2713 Image chargée depuis Pinterest !';
-          return;
-        } catch(e) {
-          // Essayer la thumbnail originale si HD échoue
-          try {
-            await _loadImageIntoPreview(data.thumbnail_url, raw);
-            status.style.color = 'var(--success)';
-            status.textContent = '\u2713 Image chargée (résolution réduite).';
-            return;
-          } catch(e2) {}
+  // Cas 2 : extraire l'ID du pin et construire l'URL image directement
+  // Format pinimg : https://i.pinimg.com/originals/XX/XX/XX/HASH.jpg
+  // L'ID du pin est dans l'URL : pinterest.com/pin/PINID/ ou pin.it/CODE
+  const pinIdMatch = raw.match(/\/pin\/([0-9]+)/);
+  if (pinIdMatch) {
+    const pinId = pinIdMatch[1];
+    // Essayer l'API oEmbed via proxy CORS
+    const oembedUrl = 'https://www.pinterest.com/oembed.json?url=https://www.pinterest.com/pin/' + pinId + '/';
+    for (const proxy of proxies.slice(0, 2)) { // seulement proxies, pas direct (CORS)
+      try {
+        const resp = await fetch(proxy(oembedUrl));
+        if (!resp.ok) continue;
+        const data = await resp.json();
+        let imgUrl = data.thumbnail_url || '';
+        if (imgUrl.includes('pinimg.com')) {
+          // Tenter version HD
+          const hdUrl = imgUrl.replace(/\/[0-9]+x\//, '/originals/').replace(/\/[0-9]+x[0-9]+\//, '/originals/');
+          for (const imgProxy of proxies) {
+            try {
+              await _loadImageIntoPreview(imgProxy(hdUrl), raw);
+              status.style.color = 'var(--success)';
+              status.textContent = '\u2713 Image chargée depuis Pinterest !';
+              return;
+            } catch(e) {}
+          }
+          // Fallback thumbnail originale
+          for (const imgProxy of proxies) {
+            try {
+              await _loadImageIntoPreview(imgProxy(imgUrl), raw);
+              status.style.color = 'var(--success)';
+              status.textContent = '\u2713 Image chargée (qualité réduite).';
+              return;
+            } catch(e) {}
+          }
         }
-      }
+      } catch(e) {}
     }
-  } catch(e) {}
+  }
 
-  // Cas 3 : tout a échoué → stocker juste l'URL comme référence
+  // Cas 3 : pin.it (lien court) → résoudre via proxy puis extraire ID
+  if (raw.includes('pin.it')) {
+    for (const proxy of proxies.slice(0, 2)) {
+      try {
+        const resp = await fetch(proxy(raw));
+        if (!resp.ok) continue;
+        const html = await resp.text();
+        // Chercher l'URL de l'image dans le HTML
+        const imgMatch = html.match(/https:\/\/i\.pinimg\.com\/[^"'\s]+\.(?:jpg|jpeg|png|webp)/i);
+        if (imgMatch) {
+          for (const imgProxy of proxies) {
+            try {
+              await _loadImageIntoPreview(imgProxy(imgMatch[0]), raw);
+              status.style.color = 'var(--success)';
+              status.textContent = '\u2713 Image chargée depuis Pinterest !';
+              return;
+            } catch(e) {}
+          }
+        }
+      } catch(e) {}
+    }
+  }
+
+  // Tout a échoué → stocker l'URL et guider l'utilisatrice
   status.style.color = 'var(--warn)';
-  status.textContent = '\u26a0 Image non accessible automatiquement. Enregistrez le lien et glissez l image manuellement.';
+  status.textContent = '\u26a0 Pinterest bloque le chargement automatique. Le lien est sauvegardé — ouvre le pin, fais "Enregistrer l\u2019image" puis glisse-la ici.';
 });
 
 // ── MODAL IMAGE ──
