@@ -1,5 +1,5 @@
 // ── IMAGES ──
-let imgSort = 'alpha', imgSearch = '', imgTagFilterMap = new Map(), imgUnlinkedOnly = false, imgHostedFilter = 0; // 0=tous, 1=hébergée, -1=non hébergée
+let imgSort = 'chrono', imgSearch = '', imgTagFilterMap = new Map(), imgUnlinkedOnly = false, imgHostedFilter = 0; // 0=tous, 1=hébergée, -1=non hébergée
 let editingImageId = null, selectedPrenomForImage = null, selectedTagsForImage = [], currentIsCropped = false, currentHostedUrl = null;
 let currentOriginalDataUrl = null;
 
@@ -169,45 +169,86 @@ document.querySelectorAll('[data-img-sort]').forEach(btn => {
 document.getElementById('image-search').addEventListener('input', e => { imgSearch=e.target.value.trim(); renderImages(); });
 
 // ── PINTEREST URL ──
-document.getElementById('img-pinterest-input')?.addEventListener('input', async function() {
-  const url   = this.value.trim();
+// ── Charger une image depuis une URL et l'injecter dans le preview ──
+async function _loadImageIntoPreview(imageUrl, sourceUrl) {
+  const dataUrl = await fetchImageAsDataUrl(imageUrl);
+  if (!dataUrl) throw new Error('Impossible de charger l image');
+  const preview     = document.getElementById('img-preview');
+  const dropContent = document.getElementById('img-drop-content');
+  const previewWrap = document.getElementById('img-preview-wrap');
+  preview.src = dataUrl;
+  preview.dataset.showingOriginal = 'false';
+  currentOriginalDataUrl = dataUrl;
+  currentIsCropped  = false;
+  currentHostedUrl  = null;
+  dropContent.style.display = 'none';
+  previewWrap.style.display = '';
+  showHostedZone(null);
+  updateCropStatusUI(false, null);
+  return dataUrl;
+}
+
+document.getElementById('img-pinterest-input')?.addEventListener('change', async function() {
+  const raw    = this.value.trim();
   const status = document.getElementById('img-pinterest-status');
-  if (!url) { status.style.display='none'; return; }
-  if (!url.includes('pinterest') && !url.includes('pin.it') && !url.includes('pinimg.com')) {
-    status.style.display=''; status.style.color='var(--danger)';
-    status.textContent = '⚠ Ce lien ne semble pas être un lien Pinterest.'; return;
+  if (!raw) { status.style.display = 'none'; return; }
+
+  // Validation : doit contenir pinterest, pin.it ou pinimg
+  const isPinterest = raw.includes('pinterest') || raw.includes('pin.it') || raw.includes('pinimg.com');
+  if (!isPinterest) {
+    status.style.display = ''; status.style.color = 'var(--danger)';
+    status.textContent = '\u26a0 Ce lien ne semble pas être un lien Pinterest.';
+    return;
   }
-  // Tenter de charger l'image directement (fonctionne pour les URLs d'images pinimg.com)
-  if (url.includes('pinimg.com') || url.match(/\.(?:jpg|jpeg|png|webp|gif)$/i)) {
-    status.style.display=''; status.style.color='var(--text3)';
-    status.textContent = "⏳ Chargement de l'image…";
+
+  status.style.display = ''; status.style.color = 'var(--text3)';
+  status.textContent = '\u23f3 Chargement…';
+
+  // Cas 1 : URL directe d'image (pinimg.com ou extension image)
+  if (raw.includes('pinimg.com') || /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(raw)) {
     try {
-      const dataUrl = await fetchImageAsDataUrl(url);
-      if (dataUrl) {
-        // Injecter l'image dans la zone de preview
-        const preview = document.getElementById('img-preview');
-        const dropContent = document.getElementById('img-drop-content');
-        const previewWrap  = document.getElementById('img-preview-wrap');
-        preview.src = dataUrl;
-        preview.dataset.showingOriginal = 'false';
-        currentOriginalDataUrl = dataUrl;
-        currentIsCropped = false;
-        currentHostedUrl = null;
-        dropContent.style.display = 'none';
-        previewWrap.style.display = '';
-        showHostedZone(null);
-        updateCropStatusUI(false, null);
-        status.style.color='var(--success)';
-        status.textContent = '\u2713 Image chargée depuis Pinterest !';
-        return;
-      }
+      await _loadImageIntoPreview(raw, raw);
+      status.style.color = 'var(--success)';
+      status.textContent = '\u2713 Image chargée !';
+      return;
     } catch(e) {}
-    status.style.color='var(--warn)';
-    status.textContent = "⚠ Image non accessible directement. L'URL Pinterest sera sauvegardée.";
-  } else {
-    status.style.display=''; status.style.color='var(--text3)';
-    status.textContent = "ℹ URL Pinterest sauvegardée. Glissez aussi l'image manuellement si besoin.";
   }
+
+  // Cas 2 : lien de partage pinterest.com/pin/XXXXX ou pin.it/XXXXX
+  // → utiliser l'API oEmbed Pinterest pour récupérer thumbnail_url
+  try {
+    const oembedUrl = 'https://www.pinterest.com/oembed.json?url=' + encodeURIComponent(raw);
+    const resp = await fetch(oembedUrl);
+    if (resp.ok) {
+      const data = await resp.json();
+      // thumbnail_url est souvent en basse résolution — chercher une version HD
+      let imgUrl = data.thumbnail_url || '';
+      // Tenter la version originale en remplaçant la taille dans l'URL pinimg
+      if (imgUrl.includes('pinimg.com')) {
+        imgUrl = imgUrl.replace(/\/[0-9]+x\//, '/originals/').replace(/\/[0-9]+x[0-9]+\//, '/originals/');
+      }
+      if (imgUrl) {
+        try {
+          await _loadImageIntoPreview(imgUrl, raw);
+          status.style.color = 'var(--success)';
+          status.textContent = '\u2713 Image chargée depuis Pinterest !';
+          return;
+        } catch(e) {
+          // Essayer la thumbnail originale si HD échoue
+          try {
+            await _loadImageIntoPreview(data.thumbnail_url, raw);
+            status.style.color = 'var(--success)';
+            status.textContent = '\u2713 Image chargée (résolution réduite).';
+            return;
+          } catch(e2) {}
+        }
+      }
+    }
+  } catch(e) {}
+
+  // Cas 3 : tout a échoué → stocker juste l'URL comme référence
+  status.style.color = 'var(--warn)';
+  status.textContent = '\u26a0 Image non accessible automatiquement. Enregistrez le lien et glissez l image manuellement.';
 });
 
 // ── MODAL IMAGE ──
