@@ -36,9 +36,11 @@ async function init() {
   updateStats();
 }
 
-init().then(() => {
-  // Démarrer Firebase après init IndexedDB
-  if (typeof fbStart === 'function') fbStart();
+// Attendre que toutes les pages soient chargées dans le DOM (via fetch dans index.html)
+document.addEventListener('ps:ready', () => {
+  init().then(() => {
+    if (typeof fbStart === 'function') fbStart();
+  });
 });
 
 if ('serviceWorker' in navigator) {
