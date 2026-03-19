@@ -188,106 +188,57 @@ async function _loadImageIntoPreview(imageUrl, sourceUrl) {
   return dataUrl;
 }
 
-document.getElementById('img-pinterest-input')?.addEventListener('change', async function() {
-  const raw    = this.value.trim();
-  const status = document.getElementById('img-pinterest-status');
-  if (!raw) { status.style.display = 'none'; return; }
+(function() {
+  const pinInput = document.getElementById('img-pinterest-input');
+  if (!pinInput) return;
 
-  const isPinterest = raw.includes('pinterest') || raw.includes('pin.it') || raw.includes('pinimg.com');
-  if (!isPinterest) {
-    status.style.display = ''; status.style.color = 'var(--danger)';
-    status.textContent = '\u26a0 Ce lien ne semble pas être un lien Pinterest.';
-    return;
-  }
+  async function handlePinterestUrl() {
+    const raw    = pinInput.value.trim();
+    const status = document.getElementById('img-pinterest-status');
+    if (!raw) { status.style.display = 'none'; return; }
 
-  status.style.display = ''; status.style.color = 'var(--text3)';
-  status.textContent = '\u23f3 Chargement\u2026';
+    const isPinterest = raw.includes('pinterest') || raw.includes('pin.it') || raw.includes('pinimg.com');
+    if (!isPinterest) {
+      status.style.display = ''; status.style.color = 'var(--danger)';
+      status.textContent = '\u26a0 Ce lien ne semble pas \u00eatre un lien Pinterest.';
+      return;
+    }
 
-  // Construire les URLs candidates à tester (via proxies CORS publics)
-  const proxies = [
-    url => 'https://corsproxy.io/?' + encodeURIComponent(url),
-    url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-    url => url, // tentative directe en dernier
-  ];
-
-  // Cas 1 : URL directe d'image pinimg.com
-  if (raw.includes('pinimg.com') || /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(raw)) {
-    for (const proxy of proxies) {
+    // Cas 1 : URL directe d'image pinimg.com → charger directement
+    if (raw.includes('pinimg.com') || /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(raw)) {
+      status.style.display = ''; status.style.color = 'var(--text3)';
+      status.textContent = '\u23f3 Chargement\u2026';
       try {
-        await _loadImageIntoPreview(proxy(raw), raw);
+        await _loadImageIntoPreview(raw, raw);
         status.style.color = 'var(--success)';
-        status.textContent = '\u2713 Image chargée !';
+        status.textContent = '\u2713 Image charg\u00e9e !';
         return;
       } catch(e) {}
     }
+
+    // Cas 2 : lien de pin → Pinterest bloque tout accès CORS côté navigateur
+    // On ne peut pas récupérer l'image automatiquement.
+    // Meilleure UX : afficher un bouton qui ouvre le pin + instructions
+    status.style.display = ''; status.style.color = 'var(--text3)';
+    status.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:6px;">' +
+      '<span>\u26a0\ufe0f Pinterest emp\u00eache le chargement automatique des liens de pin.</span>' +
+      '<span style="color:var(--text2);">Deux options :</span>' +
+      '<span>\u2460 Copier l\u2019URL directe de l\u2019image (clic droit sur l\u2019image → "Copier l\u2019adresse du lien")</span>' +
+      '<span>\u2461 <a href="' + raw + '" target="_blank" rel="noopener" ' +
+        'style="color:var(--accent2);text-decoration:underline;">Ouvrir le pin</a>' +
+        ', t\u00e9l\u00e9charger l\u2019image, puis la glisser ici</span>' +
+      '<span style="color:var(--text3);font-size:10px;">Le lien Pinterest est sauvegard\u00e9 comme r\u00e9f\u00e9rence.</span>' +
+      '</div>';
   }
 
-  // Cas 2 : extraire l'ID du pin et construire l'URL image directement
-  // Format pinimg : https://i.pinimg.com/originals/XX/XX/XX/HASH.jpg
-  // L'ID du pin est dans l'URL : pinterest.com/pin/PINID/ ou pin.it/CODE
-  const pinIdMatch = raw.match(/\/pin\/([0-9]+)/);
-  if (pinIdMatch) {
-    const pinId = pinIdMatch[1];
-    // Essayer l'API oEmbed via proxy CORS
-    const oembedUrl = 'https://www.pinterest.com/oembed.json?url=https://www.pinterest.com/pin/' + pinId + '/';
-    for (const proxy of proxies.slice(0, 2)) { // seulement proxies, pas direct (CORS)
-      try {
-        const resp = await fetch(proxy(oembedUrl));
-        if (!resp.ok) continue;
-        const data = await resp.json();
-        let imgUrl = data.thumbnail_url || '';
-        if (imgUrl.includes('pinimg.com')) {
-          // Tenter version HD
-          const hdUrl = imgUrl.replace(/\/[0-9]+x\//, '/originals/').replace(/\/[0-9]+x[0-9]+\//, '/originals/');
-          for (const imgProxy of proxies) {
-            try {
-              await _loadImageIntoPreview(imgProxy(hdUrl), raw);
-              status.style.color = 'var(--success)';
-              status.textContent = '\u2713 Image chargée depuis Pinterest !';
-              return;
-            } catch(e) {}
-          }
-          // Fallback thumbnail originale
-          for (const imgProxy of proxies) {
-            try {
-              await _loadImageIntoPreview(imgProxy(imgUrl), raw);
-              status.style.color = 'var(--success)';
-              status.textContent = '\u2713 Image chargée (qualité réduite).';
-              return;
-            } catch(e) {}
-          }
-        }
-      } catch(e) {}
-    }
-  }
-
-  // Cas 3 : pin.it (lien court) → résoudre via proxy puis extraire ID
-  if (raw.includes('pin.it')) {
-    for (const proxy of proxies.slice(0, 2)) {
-      try {
-        const resp = await fetch(proxy(raw));
-        if (!resp.ok) continue;
-        const html = await resp.text();
-        // Chercher l'URL de l'image dans le HTML
-        const imgMatch = html.match(/https:\/\/i\.pinimg\.com\/[^"'\s]+\.(?:jpg|jpeg|png|webp)/i);
-        if (imgMatch) {
-          for (const imgProxy of proxies) {
-            try {
-              await _loadImageIntoPreview(imgProxy(imgMatch[0]), raw);
-              status.style.color = 'var(--success)';
-              status.textContent = '\u2713 Image chargée depuis Pinterest !';
-              return;
-            } catch(e) {}
-          }
-        }
-      } catch(e) {}
-    }
-  }
-
-  // Tout a échoué → stocker l'URL et guider l'utilisatrice
-  status.style.color = 'var(--warn)';
-  status.textContent = '\u26a0 Pinterest bloque le chargement automatique. Le lien est sauvegardé — ouvre le pin, fais "Enregistrer l\u2019image" puis glisse-la ici.';
-});
+  // Déclencher sur 'input' (coller inclus) ET sur 'change' (quitter le champ)
+  pinInput.addEventListener('input',  handlePinterestUrl);
+  pinInput.addEventListener('change', handlePinterestUrl);
+  // Bouton dédié pour déclencher manuellement (utile sur mobile)
+  const pinBtn = document.getElementById('btn-pinterest-load');
+  if (pinBtn) pinBtn.addEventListener('click', handlePinterestUrl);
+})();
 
 // ── MODAL IMAGE ──
 function openImageModal(img) {
