@@ -642,6 +642,8 @@ document.getElementById('btn-export-pk-api').addEventListener('click', async () 
     const totalChanges = mCreated + mUpdated + gCreated + gUpdated;
     toast(`Export PK terminé : ${mCreated+mUpdated} membres, ${gCreated+gUpdated} groupes.`, (mErrors+gErrors) ? 'info' : 'success');
     logHistory(`Export PluralKit : ${mCreated} créés, ${mUpdated} mis à jour, ${gCreated} groupes créés, ${gUpdated} groupes mis à jour`, 'config');
+    // Sauvegarder la date du dernier envoi PK
+    localStorage.setItem('ps-pk-last-push', Date.now().toString());
 
   } catch(e) {
     addLog(`✕ Erreur générale : ${esc(e.message)}`);

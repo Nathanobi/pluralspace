@@ -50,11 +50,11 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.66</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.67</button>
       </div>
 
       <!-- Système PluralKit -->
-      <div id="pk-system-card" data-goto="systeme" style="display:none;cursor:pointer;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:20px 24px;margin-bottom:24px;">
+      <div id="pk-system-card" class="stat-card" data-goto="systeme" style="display:none;padding:20px 24px;margin-bottom:24px;">
         <!-- Nom du système -->
         <div style="font-size:32px;font-family:'Cormorant Garamond',serif;color:var(--accent2);font-weight:300;line-height:1;margin-bottom:12px;" id="pk-sys-name">—</div>
         <!-- Séparateur -->
@@ -360,7 +360,7 @@
       <div class="sys-section-grid">
 
         <!-- Informations système -->
-        <div class="config-card" style="flex:1;min-width:280px;">
+        <div class="config-card" style="flex:1;min-width:280px;padding:20px;">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:14px;">✺ Informations système</div>
           <div class="form-group">
             <label class="form-label">Nom du système</label>
@@ -386,14 +386,13 @@
         </div>
 
         <!-- Informations temporelles -->
-        <div class="config-card" style="flex:1;min-width:240px;">
+        <div class="config-card" style="flex:1;min-width:240px;padding:20px;">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:14px;">◎ Chronologie</div>
           <div class="sys-time-row"><span class="sys-time-lbl">ID PluralKit</span><span class="sys-time-val" id="sys-info-pkid" style="font-family:monospace;">—</span></div>
           <div class="sys-time-row"><span class="sys-time-lbl">Système créé</span><span class="sys-time-val" id="sys-info-created">—</span></div>
           <div class="sys-time-row"><span class="sys-time-lbl">Dernier envoi PK</span><span class="sys-time-val" id="sys-info-lastpk">—</span></div>
           <div class="sys-time-row"><span class="sys-time-lbl">Dernière sync cloud</span><span class="sys-time-val" id="sys-info-lastsync">—</span></div>
           <div class="sys-time-row"><span class="sys-time-lbl">Dernière modif app</span><span class="sys-time-val" id="sys-info-lastchange">—</span></div>
-          <div class="sys-time-row"><span class="sys-time-lbl">Prénoms</span><span class="sys-time-val" id="sys-info-members">—</span></div>
         </div>
 
       </div>
@@ -432,10 +431,10 @@
           </div>
 
           <div class="sys-collapse-block">
-            <div class="sys-collapse-header" data-collapse="sys-col-profils">
-              <span>◉ Profils</span><span class="sys-collapse-count" id="sys-col-profils-count"></span><span class="sys-collapse-arrow">▸</span>
+            <div class="sys-collapse-header" data-collapse="sys-col-images">
+              <span>◈ Images</span><span class="sys-collapse-count" id="sys-col-images-count"></span><span class="sys-collapse-arrow">▸</span>
             </div>
-            <div class="sys-collapse-body" id="sys-col-profils" style="display:none;"></div>
+            <div class="sys-collapse-body" id="sys-col-images" style="display:none;"></div>
           </div>
 
           <div class="sys-collapse-block">
@@ -446,17 +445,17 @@
           </div>
 
           <div class="sys-collapse-block">
-            <div class="sys-collapse-header" data-collapse="sys-col-images">
-              <span>◈ Images</span><span class="sys-collapse-count" id="sys-col-images-count"></span><span class="sys-collapse-arrow">▸</span>
-            </div>
-            <div class="sys-collapse-body" id="sys-col-images" style="display:none;"></div>
-          </div>
-
-          <div class="sys-collapse-block">
             <div class="sys-collapse-header" data-collapse="sys-col-tags">
               <span>◇ Tags</span><span class="sys-collapse-count" id="sys-col-tags-count"></span><span class="sys-collapse-arrow">▸</span>
             </div>
             <div class="sys-collapse-body" id="sys-col-tags" style="display:none;"></div>
+          </div>
+
+          <div class="sys-collapse-block">
+            <div class="sys-collapse-header" data-collapse="sys-col-profils">
+              <span>◉ Profils</span><span class="sys-collapse-count" id="sys-col-profils-count"></span><span class="sys-collapse-arrow">▸</span>
+            </div>
+            <div class="sys-collapse-body" id="sys-col-profils" style="display:none;"></div>
           </div>
 
         </div>
@@ -1150,7 +1149,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.66';
+  const APP_VERSION = '1.67';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {

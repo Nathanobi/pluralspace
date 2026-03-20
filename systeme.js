@@ -25,20 +25,33 @@ function loadSysForm() {
 // ── Afficher les infos temporelles ──
 function renderSysTimeline() {
   const sys  = getSysInfo();
-  const fmtDate = ts => ts ? new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+  const fmtDate = ts => ts && ts > 0 ? new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const fmtDay  = str => str ? new Date(str).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
 
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
   set('sys-info-pkid',       sys.pkId || '—');
   set('sys-info-created',    fmtDay(sys.pkCreated));
-  set('sys-info-lastpk',     fmtDate(parseInt(localStorage.getItem(PK_LAST_PUSH_KEY) || '0') || null));
-  set('sys-info-lastchange', fmtDate(sys.lastChanged));
 
-  // Dernière sync cloud (Firebase)
-  const fbUser = typeof window.fbUser !== 'undefined' ? window.fbUser : null;
-  const lastSync = fbUser ? parseInt(localStorage.getItem(`ps-last-sync-${fbUser.uid}`) || '0') : 0;
-  set('sys-info-lastsync', lastSync ? fmtDate(lastSync) : '—');
-  set('sys-info-members',  prenoms.length + ' prénom(s)');
+  // Dernier envoi PK — depuis config.js (btn-export-pk-api) OU btn-sys-send-pk
+  const lastPk = parseInt(localStorage.getItem(PK_LAST_PUSH_KEY) || '0');
+  set('sys-info-lastpk', fmtDate(lastPk));
+
+  // Dernière sync cloud — utiliser fbGetLastSync si disponible (firebase.js)
+  let lastSync = 0;
+  if (typeof fbGetLastSync === 'function') {
+    lastSync = fbGetLastSync();
+  } else {
+    // Fallback : chercher dans tous les ps-last-sync-* du localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('ps-last-sync-')) {
+        const val = parseInt(localStorage.getItem(key) || '0');
+        if (val > lastSync) lastSync = val;
+      }
+    }
+  }
+  set('sys-info-lastsync', fmtDate(lastSync));
+  set('sys-info-lastchange', fmtDate(sys.lastChanged));
 }
 
 // ── Enregistrer les infos système localement ──
