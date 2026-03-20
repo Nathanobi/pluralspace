@@ -38,6 +38,7 @@
       <div class="nav-link" data-page="proxys"><span class="icon">⟡</span><span class="label">Proxys</span></div>
       <div class="nav-link" data-page="tags"><span class="icon">◇</span><span class="label">Tags</span></div>
       <div class="nav-link" data-page="profils"><span class="icon">◉</span><span class="label">Profils</span></div>
+      <div class="nav-link" data-page="systeme"><span class="icon">✺</span><span class="label">Système</span></div>
     </div>
     <div class="nav-footer">
       <div class="nav-link" data-page="config"><span class="icon">⚙</span><span class="label">Configuration</span></div>
@@ -49,11 +50,11 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.64</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.65</button>
       </div>
 
       <!-- Système PluralKit -->
-      <div id="pk-system-card" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:20px 24px;margin-bottom:24px;">
+      <div id="pk-system-card" data-goto="systeme" style="display:none;cursor:pointer;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:20px 24px;margin-bottom:24px;">
         <!-- Nom du système -->
         <div style="font-size:32px;font-family:'Cormorant Garamond',serif;color:var(--accent2);font-weight:300;line-height:1;margin-bottom:12px;" id="pk-sys-name">—</div>
         <!-- Séparateur -->
@@ -346,6 +347,121 @@
       </div>
       <div id="profils-grid" class="profils-grid"></div>
       <div id="profils-empty" style="display:none;"><div class="empty-state"><div class="empty-icon">◉</div><p>Aucun profil créé. Un profil regroupe prénom, image et proxy pour être envoyé à PluralKit.</p></div></div>
+    </section>
+
+    <!-- SYSTÈME -->
+    <section class="page" id="page-systeme">
+      <div class="page-header">
+        <div><div class="page-title">Système</div><div class="page-subtitle" id="systeme-subtitle">Informations &amp; recherche globale</div></div>
+        <button class="btn btn-primary" id="btn-pk-sync-system">⟡ Sync PluralKit</button>
+      </div>
+
+      <!-- INFOS SYSTÈME -->
+      <div class="sys-section-grid">
+
+        <!-- Informations système -->
+        <div class="config-card" style="flex:1;min-width:280px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:14px;">✺ Informations système</div>
+          <div class="form-group">
+            <label class="form-label">Nom du système</label>
+            <input type="text" class="input" id="sys-name-input" placeholder="Ex : Nathanobi" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tag</label>
+            <input type="text" class="input" id="sys-tag-input" placeholder="Ex : || Nathanobi" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea class="input" id="sys-desc-input" rows="4" placeholder="Description du système…" style="resize:vertical;font-family:inherit;"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Pronoms du système</label>
+            <input type="text" class="input" id="sys-pronouns-input" placeholder="Ex : il/elle" />
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="btn btn-primary" id="btn-sys-save">✓ Enregistrer</button>
+            <button class="btn btn-ghost" id="btn-sys-send-pk">⟡ Envoyer sur PK</button>
+          </div>
+          <div id="sys-save-status" style="font-size:12px;color:var(--text3);margin-top:8px;"></div>
+        </div>
+
+        <!-- Informations temporelles -->
+        <div class="config-card" style="flex:1;min-width:240px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:14px;">◎ Chronologie</div>
+          <div class="sys-time-row"><span class="sys-time-lbl">ID PluralKit</span><span class="sys-time-val" id="sys-info-pkid" style="font-family:monospace;">—</span></div>
+          <div class="sys-time-row"><span class="sys-time-lbl">Système créé</span><span class="sys-time-val" id="sys-info-created">—</span></div>
+          <div class="sys-time-row"><span class="sys-time-lbl">Dernier envoi PK</span><span class="sys-time-val" id="sys-info-lastpk">—</span></div>
+          <div class="sys-time-row"><span class="sys-time-lbl">Dernière sync cloud</span><span class="sys-time-val" id="sys-info-lastsync">—</span></div>
+          <div class="sys-time-row"><span class="sys-time-lbl">Dernière modif app</span><span class="sys-time-val" id="sys-info-lastchange">—</span></div>
+          <div class="sys-time-row"><span class="sys-time-lbl">Prénoms</span><span class="sys-time-val" id="sys-info-members">—</span></div>
+        </div>
+
+      </div>
+
+      <!-- RECHERCHE GLOBALE -->
+      <div style="margin-top:28px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:12px;">⊕ Recherche globale</div>
+        <div class="prenom-toolbar" style="margin-bottom:12px;">
+          <input type="text" class="input" id="global-search-input" placeholder="🔍  Rechercher dans tout le système…" style="flex:1;max-width:400px;" />
+          <button class="sort-btn active" data-global-filter="all">Tout</button>
+          <button class="sort-btn" data-global-filter="prenoms">Prénoms</button>
+          <button class="sort-btn" data-global-filter="profils">Profils</button>
+          <button class="sort-btn" data-global-filter="proxys">Proxys</button>
+          <button class="sort-btn" data-global-filter="images">Images</button>
+          <button class="sort-btn" data-global-filter="tags">Tags</button>
+        </div>
+        <div id="global-search-results" style="display:none;">
+          <div id="global-search-count" style="font-size:12px;color:var(--text3);margin-bottom:10px;"></div>
+          <div id="global-search-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+        <div id="global-search-empty" style="display:none;">
+          <div class="empty-state"><div class="empty-icon">⊕</div><p>Aucun résultat.</p></div>
+        </div>
+      </div>
+
+      <!-- VUE D'ENSEMBLE RÉTRACTABLE -->
+      <div style="margin-top:28px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:12px;">◈ Vue d'ensemble</div>
+        <div id="sys-overview" style="display:flex;flex-direction:column;gap:8px;">
+
+          <div class="sys-collapse-block">
+            <div class="sys-collapse-header" data-collapse="sys-col-prenoms">
+              <span>★ Prénoms</span><span class="sys-collapse-count" id="sys-col-prenoms-count"></span><span class="sys-collapse-arrow">▸</span>
+            </div>
+            <div class="sys-collapse-body" id="sys-col-prenoms" style="display:none;"></div>
+          </div>
+
+          <div class="sys-collapse-block">
+            <div class="sys-collapse-header" data-collapse="sys-col-profils">
+              <span>◉ Profils</span><span class="sys-collapse-count" id="sys-col-profils-count"></span><span class="sys-collapse-arrow">▸</span>
+            </div>
+            <div class="sys-collapse-body" id="sys-col-profils" style="display:none;"></div>
+          </div>
+
+          <div class="sys-collapse-block">
+            <div class="sys-collapse-header" data-collapse="sys-col-proxys">
+              <span>⟡ Proxys</span><span class="sys-collapse-count" id="sys-col-proxys-count"></span><span class="sys-collapse-arrow">▸</span>
+            </div>
+            <div class="sys-collapse-body" id="sys-col-proxys" style="display:none;"></div>
+          </div>
+
+          <div class="sys-collapse-block">
+            <div class="sys-collapse-header" data-collapse="sys-col-images">
+              <span>◈ Images</span><span class="sys-collapse-count" id="sys-col-images-count"></span><span class="sys-collapse-arrow">▸</span>
+            </div>
+            <div class="sys-collapse-body" id="sys-col-images" style="display:none;"></div>
+          </div>
+
+          <div class="sys-collapse-block">
+            <div class="sys-collapse-header" data-collapse="sys-col-tags">
+              <span>◇ Tags</span><span class="sys-collapse-count" id="sys-col-tags-count"></span><span class="sys-collapse-arrow">▸</span>
+            </div>
+            <div class="sys-collapse-body" id="sys-col-tags" style="display:none;"></div>
+          </div>
+
+        </div>
+      </div>
+
     </section>
 
     <!-- CONFIG -->
@@ -1027,12 +1143,14 @@
 <script src="profils.js" defer></script>
 <script src="config.js" defer></script>
 <script src="firebase.js" defer></script>
+  <script src="systeme.js" defer></script>
+  <script src="systeme.js" defer></script>
   <script src="app.js" defer></script>
 
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.64';
+  const APP_VERSION = '1.65';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {

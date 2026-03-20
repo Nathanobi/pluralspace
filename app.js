@@ -2,7 +2,7 @@
 // ── GESTION HASH URL (shortcuts PWA) ──
 function handleHashNavigation() {
   const hash = window.location.hash.replace('#', '');
-  const validPages = ['accueil', 'prenoms', 'images', 'proxys', 'tags', 'profils', 'config'];
+  const validPages = ['accueil', 'prenoms', 'images', 'proxys', 'tags', 'profils', 'systeme', 'config'];
   if (hash && validPages.includes(hash)) {
     goToPage(hash);
   }
@@ -57,6 +57,7 @@ init().then(async () => {
   if (typeof fbStart === 'function') fbStart();
   // Charger les infos système PK si token disponible
   if (typeof fetchPkSystemInfo === 'function') fetchPkSystemInfo();
+  if (typeof loadSystemData === 'function') loadSystemData();
 });
 
 if ('serviceWorker' in navigator) {

@@ -2,7 +2,7 @@
 // Stratégie : Cache First pour les assets statiques,
 //             Network First pour les requêtes réseau (API PK, imgbb)
 
-const VERSION   = 'plural-space-v64';
+const VERSION   = 'plural-space-v65';
 const CACHE_STATIC = `${VERSION}-static`;
 
 // Assets à précacher — toute l'app shell
@@ -18,7 +18,9 @@ const STATIC_ASSETS = [
   './images.js',
   './profils.js',
   './config.js',
+  './systeme.js',
   './app.js',
+  './systeme.js',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-192.png',
