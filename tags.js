@@ -219,29 +219,34 @@ function renderTagsPrenomView() {
   const filterArea = document.getElementById('tags-prenom-filter');
   const results    = document.getElementById('tags-prenom-results');
 
-  // Filtres pills — 3 états : 0 neutre → 1 inclure (vert) → -1 exclure (rouge) → 0
+  // Filtres pills — même style que Prénoms/Images/Proxys : span.tag-pill
   const showUntagged = tagsTagFilterMap.get('untagged') || 0;
-  filterArea.innerHTML = tagsSorted().map(t => {
-    const c  = getTagColor(t.color);
-    const st = tagsTagFilterMap.get(t.id) || 0;
-    let style='', label=esc(t.name);
-    if (st===1)       { style=`background:${c.bg};border:1px solid ${c.border};color:${c.text};`; label='✓ '+label; }
-    else if (st===-1) { style='background:rgba(220,50,50,.12);border:1px solid rgba(220,50,50,.4);color:#e07070;text-decoration:line-through;'; label='✕ '+label; }
-    else              { style=`background:transparent;border:1px solid ${c.border};color:${c.text};opacity:.6;`; }
-    return `<button class="tag-filter-pill" data-tpf="${t.id}" style="${style}">${label}</button>`;
-  }).join('');
-  // Bouton "Sans tag"
-  const unStyle = showUntagged===1
-    ? 'background:var(--bg4);border:1px solid var(--border2);color:var(--text);'
-    : 'background:transparent;border:1px solid var(--border2);color:var(--text3);opacity:.6;';
-  filterArea.innerHTML += `<button class="tag-filter-pill" data-tpf="untagged" style="${unStyle}">${showUntagged===1?'✓ ':''} Sans tag</button>`;
+  const noTagStyle = showUntagged === 1
+    ? 'background:rgba(107,95,128,0.2);border:1px solid rgba(107,95,128,0.6);color:var(--text2);'
+    : 'background:transparent;border:1px solid var(--border2);color:var(--text3);';
+  filterArea.innerHTML =
+    `<span class="tag-pill" data-tpf="untagged" style="${noTagStyle}cursor:pointer;">◌ Sans tags</span>` +
+    tagsSorted().map(t => {
+      const c  = getTagColor(t.color);
+      const st = tagsTagFilterMap.get(t.id) || 0;
+      let style;
+      if      (st ===  1) style = `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
+      else if (st === -1) style = `background:rgba(232,122,122,0.15);border:1px solid rgba(232,122,122,0.45);color:#e87a7a;text-decoration:line-through;`;
+      else                style = `background:transparent;border:1px solid var(--border2);color:var(--text3);`;
+      const title = st===1 ? '1 clic de plus pour masquer' : st===-1 ? '1 clic de plus pour désactiver' : 'Clic = inclure · Clic×2 = masquer';
+      return `<span class="tag-pill" data-tpf="${t.id}" title="${title}" style="${style}cursor:pointer;">${esc(t.name)}</span>`;
+    }).join('');
 
-  filterArea.querySelectorAll('[data-tpf]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const v=btn.dataset.tpf, cur=tagsTagFilterMap.get(v)||0;
-      // Pour "untagged" : seulement 0 ↔ 1 (pas d'exclure)
-      const nxt = v==='untagged' ? (cur===0?1:0) : (cur===0?1:cur===1?-1:0);
-      nxt===0?tagsTagFilterMap.delete(v):tagsTagFilterMap.set(v,nxt);
+  filterArea.querySelectorAll('[data-tpf]').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const v=pill.dataset.tpf, cur=tagsTagFilterMap.get(v)||0;
+      if (v === 'untagged') {
+        cur === 0 ? tagsTagFilterMap.set(v, 1) : tagsTagFilterMap.delete(v);
+      } else {
+        if      (cur ===  0) tagsTagFilterMap.set(v,  1);
+        else if (cur ===  1) tagsTagFilterMap.set(v, -1);
+        else                 tagsTagFilterMap.delete(v);
+      }
       renderTagsPrenomView();
     });
   });

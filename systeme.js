@@ -1,3 +1,4 @@
+(function() {
 // ── PAGE SYSTÈME ──
 
 // Clé de stockage des infos système local
@@ -292,3 +293,8 @@ function initSystemePage() {
   renderSysTimeline();
   initSysCollapseCounters();
 }
+
+  // Exposer globalement les fonctions appelées depuis d'autres fichiers
+  window.initSystemePage = initSystemePage;
+  window.runGlobalSearch = runGlobalSearch;
+})();

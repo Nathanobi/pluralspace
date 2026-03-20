@@ -14,24 +14,26 @@ function renderProfilTagFilters() {
   if (!row||!cont) return;
   if (!tags.length) { row.style.display='none'; return; }
   row.style.display='flex';
-  const noTagSt = profilTagFilterMap.get('__notag__') || 0;
+  // Même style que Prénoms/Images/Proxys : span.tag-pill
+  const noTagSt  = profilTagFilterMap.get('__notag__') || 0;
   const noTagSty = noTagSt === 1
     ? 'background:rgba(107,95,128,0.2);border:1px solid rgba(107,95,128,0.6);color:var(--text2);'
-    : 'background:transparent;border:1px solid var(--border2);color:var(--text3);opacity:.7;';
+    : 'background:transparent;border:1px solid var(--border2);color:var(--text3);';
   cont.innerHTML =
-    `<button class="tag-filter-pill" data-prftag="__notag__" style="${noTagSty}">◌ Sans tags</button>` +
+    `<span class="tag-pill" data-prftag="__notag__" style="${noTagSty}cursor:pointer;">◌ Sans tags</span>` +
     tagsSorted().map(t => {
-      const c = getTagColor(t.color);
-      const st = profilTagFilterMap.get(t.id)||0;
-      let style='', label=esc(t.name);
-      if (st===1)       { style=`background:${c.bg};border:1px solid ${c.border};color:${c.text};`; label='✓ '+label; }
-      else if (st===-1) { style='background:rgba(220,50,50,.12);border:1px solid rgba(220,50,50,.4);color:#e07070;text-decoration:line-through;'; label='✕ '+label; }
-      else              { style=`background:transparent;border:1px solid ${c.border};color:${c.text};opacity:.6;`; }
-      return `<button class="tag-filter-pill" data-prftag="${t.id}" style="${style}">${label}</button>`;
+      const c  = getTagColor(t.color);
+      const st = profilTagFilterMap.get(t.id) || 0;
+      let style;
+      if      (st ===  1) style = `background:${c.bg};border:1px solid ${c.border};color:${c.text};`;
+      else if (st === -1) style = `background:rgba(232,122,122,0.15);border:1px solid rgba(232,122,122,0.45);color:#e87a7a;text-decoration:line-through;`;
+      else                style = `background:transparent;border:1px solid var(--border2);color:var(--text3);`;
+      const title = st===1 ? '1 clic de plus pour masquer' : st===-1 ? '1 clic de plus pour désactiver' : 'Clic = inclure · Clic×2 = masquer';
+      return `<span class="tag-pill" data-prftag="${t.id}" title="${title}" style="${style}cursor:pointer;">${esc(t.name)}</span>`;
     }).join('');
-  cont.querySelectorAll('[data-prftag]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tid = btn.dataset.prftag;
+  cont.querySelectorAll('[data-prftag]').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const tid = pill.dataset.prftag;
       if (tid === '__notag__') {
         const s = profilTagFilterMap.get('__notag__') || 0;
         s === 0 ? profilTagFilterMap.set('__notag__', 1) : profilTagFilterMap.delete('__notag__');
