@@ -169,76 +169,7 @@ document.querySelectorAll('[data-img-sort]').forEach(btn => {
 document.getElementById('image-search').addEventListener('input', e => { imgSearch=e.target.value.trim(); renderImages(); });
 
 // ── PINTEREST URL ──
-// ── Charger une image depuis une URL et l'injecter dans le preview ──
-async function _loadImageIntoPreview(imageUrl, sourceUrl) {
-  const dataUrl = await fetchImageAsDataUrl(imageUrl);
-  if (!dataUrl) throw new Error('Impossible de charger l image');
-  const preview     = document.getElementById('img-preview');
-  const dropContent = document.getElementById('img-drop-content');
-  const previewWrap = document.getElementById('img-preview-wrap');
-  preview.src = dataUrl;
-  preview.dataset.showingOriginal = 'false';
-  currentOriginalDataUrl = dataUrl;
-  currentIsCropped  = false;
-  currentHostedUrl  = null;
-  dropContent.style.display = 'none';
-  previewWrap.style.display = '';
-  showHostedZone(null);
-  updateCropStatusUI(false, null);
-  return dataUrl;
-}
 
-(function() {
-  const pinInput = document.getElementById('img-pinterest-input');
-  if (!pinInput) return;
-
-  async function handlePinterestUrl() {
-    const raw    = pinInput.value.trim();
-    const status = document.getElementById('img-pinterest-status');
-    if (!raw) { status.style.display = 'none'; return; }
-
-    const isPinterest = raw.includes('pinterest') || raw.includes('pin.it') || raw.includes('pinimg.com');
-    if (!isPinterest) {
-      status.style.display = ''; status.style.color = 'var(--danger)';
-      status.textContent = '\u26a0 Ce lien ne semble pas \u00eatre un lien Pinterest.';
-      return;
-    }
-
-    // Cas 1 : URL directe d'image pinimg.com → charger directement
-    if (raw.includes('pinimg.com') || /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(raw)) {
-      status.style.display = ''; status.style.color = 'var(--text3)';
-      status.textContent = '\u23f3 Chargement\u2026';
-      try {
-        await _loadImageIntoPreview(raw, raw);
-        status.style.color = 'var(--success)';
-        status.textContent = '\u2713 Image charg\u00e9e !';
-        return;
-      } catch(e) {}
-    }
-
-    // Cas 2 : lien de pin → Pinterest bloque tout accès CORS côté navigateur
-    // On ne peut pas récupérer l'image automatiquement.
-    // Meilleure UX : afficher un bouton qui ouvre le pin + instructions
-    status.style.display = ''; status.style.color = 'var(--text3)';
-    status.innerHTML =
-      '<div style="display:flex;flex-direction:column;gap:6px;">' +
-      '<span>\u26a0\ufe0f Pinterest emp\u00eache le chargement automatique des liens de pin.</span>' +
-      '<span style="color:var(--text2);">Deux options :</span>' +
-      '<span>\u2460 Copier l\u2019URL directe de l\u2019image (clic droit sur l\u2019image → "Copier l\u2019adresse du lien")</span>' +
-      '<span>\u2461 <a href="' + raw + '" target="_blank" rel="noopener" ' +
-        'style="color:var(--accent2);text-decoration:underline;">Ouvrir le pin</a>' +
-        ', t\u00e9l\u00e9charger l\u2019image, puis la glisser ici</span>' +
-      '<span style="color:var(--text3);font-size:10px;">Le lien Pinterest est sauvegard\u00e9 comme r\u00e9f\u00e9rence.</span>' +
-      '</div>';
-  }
-
-  // Déclencher sur 'input' (coller inclus) ET sur 'change' (quitter le champ)
-  pinInput.addEventListener('input',  handlePinterestUrl);
-  pinInput.addEventListener('change', handlePinterestUrl);
-  // Bouton dédié pour déclencher manuellement (utile sur mobile)
-  const pinBtn = document.getElementById('btn-pinterest-load');
-  if (pinBtn) pinBtn.addEventListener('click', handlePinterestUrl);
-})();
 
 // ── MODAL IMAGE ──
 function openImageModal(img) {
@@ -249,11 +180,7 @@ function openImageModal(img) {
   currentOriginalDataUrl = img ? (img.originalDataUrl||null) : null;
   currentIsCropped       = img ? (img.isCropped || false) : false;
   currentHostedUrl       = img ? (img.hostedUrl || null) : null;
-  // Pinterest
-  const pinInput = document.getElementById('img-pinterest-input');
-  const pinStatus = document.getElementById('img-pinterest-status');
-  if (pinInput)  { pinInput.value = img ? (img.pinterestUrl || '') : ''; }
-  if (pinStatus) { pinStatus.style.display = 'none'; pinStatus.textContent = ''; }
+
   document.getElementById('modal-image-title').textContent = img ? 'Modifier l\'image' : 'Ajouter une image';
   document.getElementById('img-drop-content').style.display = '';
   document.getElementById('img-preview-wrap').style.display = 'none';
@@ -479,8 +406,6 @@ async function saveImage() {
     }
     img.prenomId=selectedPrenomForImage?selectedPrenomForImage.id:null;
     img.tags=selectedTagsForImage.slice();
-    const pinVal = (document.getElementById('img-pinterest-input')?.value || '').trim();
-    if (pinVal) img.pinterestUrl = pinVal; else delete img.pinterestUrl;
     // Si recadrée et pas encore de croppedHostedUrl → uploader le dataUrl recadré
     if (img.isCropped && dataUrl && dataUrl.startsWith('data:image') && !img.croppedHostedUrl && getImgbbKey()) {
       try { img.croppedHostedUrl = await uploadToImgbb(dataUrl); } catch(e) {}
@@ -499,8 +424,7 @@ async function saveImage() {
     }
     toast('Image modifiée.','success'); logHistory('Image modifiée', 'image');
   } else {
-    const pinValNew = (document.getElementById('img-pinterest-input')?.value || '').trim();
-    const img={ id:uid(), dataUrl, isCropped, originalDataUrl:currentOriginalDataUrl||dataUrl, prenomId:selectedPrenomForImage?selectedPrenomForImage.id:null, tags:selectedTagsForImage.slice(), createdAt:Date.now(), hostedUrl: currentHostedUrl, pinterestUrl: pinValNew||undefined };
+    const img={ id:uid(), dataUrl, isCropped, originalDataUrl:currentOriginalDataUrl||dataUrl, prenomId:selectedPrenomForImage?selectedPrenomForImage.id:null, tags:selectedTagsForImage.slice(), createdAt:Date.now(), hostedUrl: currentHostedUrl };
     // Auto-upload imgbb si clé disponible ET pas déjà hébergée manuellement
     if (!img.hostedUrl && getImgbbKey()) {
       try {
