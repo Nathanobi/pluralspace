@@ -16,6 +16,20 @@ async function init() {
   images  = await dbGetAll('images');
   profils = await dbGetAll('profils');
 
+  // Nettoyer les proxys/images/profils orphelins (prénom supprimé)
+  const prenomIds = new Set(prenoms.map(p => p.id));
+  for (const px of proxys.filter(x => !prenomIds.has(x.prenomId))) {
+    await dbDelete('proxys', px.id);
+  }
+  proxys = proxys.filter(x => prenomIds.has(x.prenomId));
+  for (const img of images.filter(x => x.prenomId && !prenomIds.has(x.prenomId))) {
+    img.prenomId = null; await dbPut('images', img);
+  }
+  for (const pr of profils.filter(x => !prenomIds.has(x.prenomId))) {
+    await dbDelete('profils', pr.id);
+  }
+  profils = profils.filter(x => prenomIds.has(x.prenomId));
+
   const savedNotes = await dbGet('settings','globalNotes');
   if (savedNotes) document.getElementById('global-notes-input').value = savedNotes.value;
 
@@ -38,12 +52,14 @@ async function init() {
 
 init().then(async () => {
   // Restaurer le token PK depuis IndexedDB si absent du localStorage (autre appareil)
-  if (!localStorage.getItem('ps-pk-token')) {
-    const stored = await dbGet('settings', 'pk-token');
-    if (stored && stored.value) {
-      localStorage.setItem('ps-pk-token', stored.value);
+  try {
+    if (!localStorage.getItem('ps-pk-token')) {
+      const stored = await dbGet('settings', 'pk-token');
+      if (stored && stored.value) {
+        localStorage.setItem('ps-pk-token', stored.value);
+      }
     }
-  }
+  } catch(e) { /* token absent — pas critique */ }
   // Démarrer Firebase après init IndexedDB
   if (typeof fbStart === 'function') fbStart();
   // Charger les infos système PK si token disponible

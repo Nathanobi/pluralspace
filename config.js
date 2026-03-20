@@ -870,7 +870,7 @@ document.getElementById('btn-save-pk-token').addEventListener('click', async () 
   if (!key) { toast('Le token est vide.', 'error'); return; }
   localStorage.setItem(PK_TOKEN_KEY, key);
   // Persister aussi dans IndexedDB pour synchronisation entre appareils via Firebase
-  await dbPut('settings', { id: 'pk-token', value: key });
+  await dbPut('settings', { key: 'pk-token', value: key });
   document.getElementById('pk-token-input').value = '';
   toast('Token sauvegardé, vérification…', 'success');
   await refreshPkStatus();
@@ -878,10 +878,10 @@ document.getElementById('btn-save-pk-token').addEventListener('click', async () 
 });
 
 document.getElementById('btn-clear-pk-token').addEventListener('click', () => {
-  openConfirm('Déconnecter PluralKit ?', () => {
+  openConfirm('Déconnecter PluralKit ?', async () => {
     localStorage.removeItem(PK_TOKEN_KEY);
     localStorage.removeItem('ps-pk-system-id');
-    await dbPut('settings', { id: 'pk-token', value: '' });
+    await dbPut('settings', { key: 'pk-token', value: '' });
     document.getElementById('pk-token-input').value = '';
     toast('Déconnecté de PluralKit.', 'success');
     refreshPkStatus();
@@ -893,12 +893,27 @@ document.getElementById('btn-clear-pk-token').addEventListener('click', () => {
 
 // Télécharge une image distante → dataUrl
 // Tente d'abord direct, puis via proxy CORS si refusé
-function fetchImageAsDataUrl(url) {
-  function loadImg(src) {
+async function fetchImageAsDataUrl(url) {
+  // Stratégie 1 : fetch() + blob → FileReader → dataUrl
+  // Plus fiable que <img crossOrigin> car évite les restrictions canvas CORS
+  async function tryFetch(src) {
+    const resp = await fetch(src, { mode: 'cors' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload  = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  // Stratégie 2 : <img crossOrigin> + canvas (fallback)
+  function tryImg(src) {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      const timer = setTimeout(() => reject(new Error('Timeout')), 8000);
+      const timer = setTimeout(() => reject(new Error('Timeout')), 10000);
       img.onload = () => {
         clearTimeout(timer);
         try {
@@ -914,9 +929,22 @@ function fetchImageAsDataUrl(url) {
     });
   }
 
-  return loadImg(url).catch(() =>
-    loadImg('https://corsproxy.io/?' + encodeURIComponent(url))
-  );
+  const proxies = [
+    u => u,
+    u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    u => 'https://images.weserv.nl/?url=' + encodeURIComponent(u),
+  ];
+
+  // Tenter fetch() avec chaque proxy
+  for (const proxy of proxies) {
+    try { return await tryFetch(proxy(url)); } catch(e) {}
+  }
+  // Tenter <img> avec chaque proxy
+  for (const proxy of proxies) {
+    try { return await tryImg(proxy(url)); } catch(e) {}
+  }
+  throw new Error('Impossible de charger : ' + url);
 }
 
 document.getElementById('btn-pk-import').addEventListener('click', async () => {
