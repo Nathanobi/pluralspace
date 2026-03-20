@@ -16,19 +16,12 @@ async function init() {
   images  = await dbGetAll('images');
   profils = await dbGetAll('profils');
 
-  // Nettoyer les proxys/images/profils orphelins (prénom supprimé)
-  const prenomIds = new Set(prenoms.map(p => p.id));
-  for (const px of proxys.filter(x => !prenomIds.has(x.prenomId))) {
+  // Nettoyer uniquement les proxys sans prenomId (null/undefined) — pas les orphelins
+  // (le nettoyage agressif supprimait des proxys valides après désync)
+  for (const px of proxys.filter(x => !x.prenomId)) {
     await dbDelete('proxys', px.id);
   }
-  proxys = proxys.filter(x => prenomIds.has(x.prenomId));
-  for (const img of images.filter(x => x.prenomId && !prenomIds.has(x.prenomId))) {
-    img.prenomId = null; await dbPut('images', img);
-  }
-  for (const pr of profils.filter(x => !prenomIds.has(x.prenomId))) {
-    await dbDelete('profils', pr.id);
-  }
-  profils = profils.filter(x => prenomIds.has(x.prenomId));
+  proxys = proxys.filter(x => !!x.prenomId);
 
   const savedNotes = await dbGet('settings','globalNotes');
   if (savedNotes) document.getElementById('global-notes-input').value = savedNotes.value;
