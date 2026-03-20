@@ -39,6 +39,8 @@ async function init() {
 init().then(() => {
   // Démarrer Firebase après init IndexedDB
   if (typeof fbStart === 'function') fbStart();
+  // Charger les infos système PK si token disponible
+  if (typeof fetchPkSystemInfo === 'function') fetchPkSystemInfo();
 });
 
 if ('serviceWorker' in navigator) {

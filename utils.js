@@ -125,12 +125,89 @@ document.querySelectorAll('.stat-card[data-goto]').forEach(card => {
 
 // ── STATS ──
 async function updateStats() {
-  document.getElementById('stat-prenoms').textContent = prenoms.length;
-  document.getElementById('stat-noimage').textContent = prenoms.filter(p => !p.hasImage).length;
-  document.getElementById('stat-images').textContent  = images.length;
-  document.getElementById('stat-proxys').textContent  = proxys.length;
-  document.getElementById('stat-profils').textContent = profils.length;
-  document.getElementById('stat-tags').textContent    = tags.length;
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  // ── Prénoms ──
+  const prenomCount    = prenoms.length;
+  const withImg        = prenoms.filter(p => p.hasImage).length;
+  const withProxy      = prenoms.filter(p => proxys.some(px => px.prenomId === p.id)).length;
+  const withProfil     = prenoms.filter(p => profils.some(pr => pr.prenomId === p.id)).length;
+  set('stat-prenoms',           prenomCount);
+  set('stat-prenoms-withimg',   withImg);
+  set('stat-prenoms-noimg',     prenomCount - withImg);
+  set('stat-prenoms-withproxy', withProxy);
+  set('stat-prenoms-noproxy',   prenomCount - withProxy);
+  set('stat-prenoms-withprofil',withProfil);
+  set('stat-prenoms-noprofil',  prenomCount - withProfil);
+
+  // ── Images ──
+  const imgCount   = images.length;
+  const imgLinked  = images.filter(i => i.prenomId && prenoms.find(p => p.id === i.prenomId)).length;
+  const imgCropped = images.filter(i => i.isCropped).length;
+  const imgHosted  = images.filter(i => !!i.hostedUrl).length;
+  set('stat-images',          imgCount);
+  set('stat-images-linked',   imgLinked);
+  set('stat-images-unlinked', imgCount - imgLinked);
+  set('stat-images-cropped',  imgCropped);
+  set('stat-images-uncropped',imgCount - imgCropped);
+  set('stat-images-hosted',   imgHosted);
+  set('stat-images-unhosted', imgCount - imgHosted);
+
+  // ── Proxys ──
+  const seen = {};
+  for (const px of proxys) {
+    const key = (px.prefix||'') + '|' + (px.suffix||'');
+    if (!seen[key]) seen[key] = new Set();
+    seen[key].add(px.prenomId);
+  }
+  const conflictCount = Object.values(seen).filter(s => s.size > 1).length;
+  set('stat-proxys',           proxys.length);
+  set('stat-proxys-conflicts', conflictCount);
+
+  // ── Tags ──
+  const prenomsWith    = prenoms.filter(p => p.tags && p.tags.length > 0).length;
+  set('stat-tags',             tags.length);
+  set('stat-tags-withprenoms', prenomsWith);
+  set('stat-tags-noprenoms',   prenoms.length - prenomsWith);
+
+  // ── Profils ──
+  const profilCount    = profils.length;
+  const profilComplete = profils.filter(pr => {
+    const p = prenoms.find(x => x.id === pr.prenomId);
+    return p && p.hasImage && proxys.some(px => px.prenomId === p.id) && pr.pronouns;
+  }).length;
+  const profilPk = profils.filter(pr => !!pr.pkMemberId).length;
+  set('stat-profils',            profilCount);
+  set('stat-profils-complete',   profilComplete);
+  set('stat-profils-incomplete', profilCount - profilComplete);
+  set('stat-profils-pk',         profilPk);
+  set('stat-profils-nopk',       profilCount - profilPk);
+}
+
+// ── Charger les infos système PluralKit ──
+async function fetchPkSystemInfo() {
+  const token = localStorage.getItem('ps-pk-token');
+  if (!token) return;
+  try {
+    const resp = await fetch('https://api.pluralkit.me/v2/systems/@me', {
+      headers: { 'Authorization': token }
+    });
+    if (!resp.ok) return;
+    const sys = await resp.json();
+    const card = document.getElementById('pk-system-card');
+    if (!card) return;
+    card.style.display = '';
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+    set('pk-sys-name', sys.name);
+    set('pk-sys-id',   sys.id);
+    set('pk-sys-tag',  sys.tag);
+    const created = sys.created ? new Date(sys.created).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+    set('pk-sys-created', created);
+    if (sys.description) {
+      const desc = document.getElementById('pk-sys-desc');
+      if (desc) { desc.textContent = sys.description; desc.style.display = ''; }
+    }
+  } catch(e) {}
 }
 
 // ── SYNC TAGS PRÉNOM → IMAGES + PROFIL ──

@@ -151,11 +151,18 @@
     .placeholder-badge { padding: 6px 16px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; }
 
     /* STATS */
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
-    .stat-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .stat-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 8px; transition: border-color var(--transition); }
+    .stat-card:hover { border-color: var(--border); }
     .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; }
     .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 38px; color: var(--accent2); font-weight: 300; line-height: 1; }
     .stat-sub { font-size: 12px; color: var(--text3); }
+    .stat-card-detail { gap: 6px; }
+    .stat-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; margin-top: 6px; border-top: 1px solid var(--border2); padding-top: 8px; }
+    .stat-detail-row { display: flex; justify-content: space-between; align-items: center; gap: 4px; padding: 2px 0; }
+    .stat-detail-lbl { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat-detail-val { font-size: 12px; font-weight: 600; color: var(--text2); flex-shrink: 0; }
+    .stat-detail-val.muted { color: var(--text3); font-weight: 400; }
 
     /* PRENOMS PAGE */
     .prenom-toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
@@ -383,6 +390,7 @@
       .prenoms-grid  { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
       .images-grid   { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
       .stats-grid    { grid-template-columns: repeat(2, 1fr); }
+      .stat-detail-grid { grid-template-columns: 1fr; }
       /* Modal proxy : empiler panneau principal + side panel */
       #modal-proxy .modal { flex-direction: column; max-width: 98vw !important; }
       #modal-proxy #proxy-form-panel { border-right: none !important; max-height: none !important; }
@@ -484,6 +492,7 @@
       .images-grid   { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
       .tags-grid     { grid-template-columns: 1fr; }
       .stats-grid    { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .stat-detail-grid { grid-template-columns: 1fr; }
       .useful-links-grid { grid-template-columns: 1fr; gap: 8px; }
 
       /* ── CARTES ── */
@@ -649,6 +658,7 @@
       .profils-grid { grid-template-columns: 1fr; }
       .images-grid  { grid-template-columns: 1fr 1fr; }
       .stats-grid   { grid-template-columns: 1fr 1fr; }
+      .stat-detail-grid { grid-template-columns: 1fr; }
       .page { padding: 12px 10px 20px; }
       .nav-link .label { display: none !important; }
       .nav-link .icon  { font-size: 22px; }
