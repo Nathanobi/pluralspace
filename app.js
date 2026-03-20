@@ -36,7 +36,14 @@ async function init() {
   updateStats();
 }
 
-init().then(() => {
+init().then(async () => {
+  // Restaurer le token PK depuis IndexedDB si absent du localStorage (autre appareil)
+  if (!localStorage.getItem('ps-pk-token')) {
+    const stored = await dbGet('settings', 'pk-token');
+    if (stored && stored.value) {
+      localStorage.setItem('ps-pk-token', stored.value);
+    }
+  }
   // Démarrer Firebase après init IndexedDB
   if (typeof fbStart === 'function') fbStart();
   // Charger les infos système PK si token disponible

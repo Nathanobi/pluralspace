@@ -49,20 +49,22 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.61</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.62</button>
       </div>
 
       <!-- Système PluralKit -->
-      <div id="pk-system-card" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:16px 20px;margin-bottom:24px;">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <div style="font-size:28px;font-family:'Cormorant Garamond',serif;color:var(--accent2);font-weight:300;" id="pk-sys-name">—</div>
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <div style="font-size:12px;color:var(--text3);">ID : <span id="pk-sys-id" style="color:var(--text2);font-family:monospace;">—</span>
-              &nbsp;·&nbsp; Tag : <span id="pk-sys-tag" style="color:var(--text2);">—</span></div>
-            <div style="font-size:12px;color:var(--text3);">Créé le : <span id="pk-sys-created" style="color:var(--text2);">—</span></div>
-          </div>
+      <div id="pk-system-card" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:20px 24px;margin-bottom:24px;">
+        <!-- Nom du système -->
+        <div style="font-size:32px;font-family:'Cormorant Garamond',serif;color:var(--accent2);font-weight:300;line-height:1;margin-bottom:12px;" id="pk-sys-name">—</div>
+        <!-- Séparateur -->
+        <div style="height:1px;background:var(--border2);margin-bottom:12px;"></div>
+        <!-- Infos -->
+        <div style="display:flex;flex-wrap:wrap;gap:16px;">
+          <div style="font-size:12px;color:var(--text3);">ID <span id="pk-sys-id" style="color:var(--text2);font-family:monospace;margin-left:4px;">—</span></div>
+          <div style="font-size:12px;color:var(--text3);">Tag <span id="pk-sys-tag" style="color:var(--text2);margin-left:4px;">—</span></div>
+          <div style="font-size:12px;color:var(--text3);">Créé le <span id="pk-sys-created" style="color:var(--text2);margin-left:4px;">—</span></div>
         </div>
-        <div id="pk-sys-desc" style="margin-top:10px;font-size:13px;color:var(--text2);line-height:1.5;white-space:pre-wrap;display:none;"></div>
+        <div id="pk-sys-desc" style="margin-top:12px;font-size:13px;color:var(--text2);line-height:1.6;white-space:pre-wrap;padding-top:12px;border-top:1px solid var(--border2);display:none;"></div>
       </div>
 
       <!-- Statistiques détaillées -->
@@ -109,7 +111,7 @@
         <div class="stat-card stat-card-detail" data-goto="tags" style="cursor:pointer;">
           <div class="stat-label">◇ Tags</div>
           <div class="stat-value" id="stat-tags">0</div>
-          <div class="stat-detail-grid">
+          <div class="stat-detail-grid" style="grid-template-columns:1fr;">
             <div class="stat-detail-row"><span class="stat-detail-lbl">Prénoms avec tag</span><span class="stat-detail-val" id="stat-tags-withprenoms">0</span></div>
             <div class="stat-detail-row"><span class="stat-detail-lbl">Prénoms sans tag</span><span class="stat-detail-val muted" id="stat-tags-noprenoms">0</span></div>
           </div>
@@ -1030,7 +1032,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.61';
+  const APP_VERSION = '1.62';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {

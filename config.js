@@ -869,15 +869,19 @@ document.getElementById('btn-save-pk-token').addEventListener('click', async () 
   const key = document.getElementById('pk-token-input').value.trim();
   if (!key) { toast('Le token est vide.', 'error'); return; }
   localStorage.setItem(PK_TOKEN_KEY, key);
+  // Persister aussi dans IndexedDB pour synchronisation entre appareils via Firebase
+  await dbPut('settings', { id: 'pk-token', value: key });
   document.getElementById('pk-token-input').value = '';
   toast('Token sauvegardé, vérification…', 'success');
   await refreshPkStatus();
+  if (typeof fetchPkSystemInfo === 'function') fetchPkSystemInfo();
 });
 
 document.getElementById('btn-clear-pk-token').addEventListener('click', () => {
   openConfirm('Déconnecter PluralKit ?', () => {
     localStorage.removeItem(PK_TOKEN_KEY);
     localStorage.removeItem('ps-pk-system-id');
+    await dbPut('settings', { id: 'pk-token', value: '' });
     document.getElementById('pk-token-input').value = '';
     toast('Déconnecté de PluralKit.', 'success');
     refreshPkStatus();
