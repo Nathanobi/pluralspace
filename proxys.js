@@ -158,12 +158,12 @@ function updateProxyPreview() {
       document.getElementById('proxy-conflict-proxy-val').textContent   = (dupPx.prefix||'')+'text'+(dupPx.suffix||'');
       conflict.style.display = '';
       document.getElementById('btn-proxy-edit-existing').onclick = () => {
-        // Ouvre une nouvelle fenêtre proxy empilée (max MAX_PROXY_STACK)
-        if (proxyModalStack.length >= MAX_PROXY_STACK) {
-          toast(`Maximum ${MAX_PROXY_STACK} fenêtres de proxy ouvertes.`, 'error');
-          return;
-        }
-        openProxyModal(dupPx, null, true); // true = stacked
+        // Fermer ce modal et ouvrir le resolver de conflit
+        const currentPrefix = document.getElementById('proxy-prefix-input').value;
+        const currentSuffix = document.getElementById('proxy-suffix-input').value;
+        const conflictKey = (currentPrefix||'') + '|' + (currentSuffix||'');
+        closeProxyModal();
+        setTimeout(() => openConflictResolver(conflictKey), 100);
       };
     }
   }
@@ -521,24 +521,26 @@ function renderProxys() {
   });
 
   tbody.innerHTML = rows.map(({p, pxList}) => {
-    const firstPx   = pxList[0];
-    const proxysHtml = pxList.map(px =>
-      `<span class="proxy-mini-pill" style="cursor:pointer;" data-proxy-edit="${px.id}" title="Modifier ce proxy">${esc((px.prefix||'')+'text'+(px.suffix||''))}</span>`
-    ).join(' ');
-    return `<tr>
-      <td class="proxy-name-cell">${esc(p.name)}</td>
-      <td>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
-          ${proxysHtml}
-          <button class="btn btn-ghost btn-sm" data-add-proxy-for="${p.id}" style="padding:2px 8px;font-size:11px;margin-left:4px;">+ Proxy</button>
-        </div>
-      </td>
-      <td><div class="preview-bubble">${esc(firstPx.prefix||'')}<strong class="preview-name" style="white-space:pre;">${esc(p.name)}</strong>${esc(firstPx.suffix||'')}</div>
-        ${pxList.length>1?`<span style="font-size:11px;color:var(--text3);margin-left:6px;">+${pxList.length-1} autre${pxList.length-1>1?'s':''}</span>`:''}</td>
-      <td class="proxy-actions-cell"><div class="proxy-row-actions">
-        <button class="btn btn-danger btn-sm btn-icon" data-proxy-del-all="${p.id}" title="Supprimer tous les proxys">✕</button>
-      </div></td>
-    </tr>`;
+    // Une ligne par proxy individuel
+    const proxyRows = pxList.map((px, idx) => {
+      const proxyStr = (px.prefix||'') + 'texte' + (px.suffix||'');
+      return `<tr class="proxy-sub-row${idx===0?' proxy-sub-row-first':''}">
+        ${idx===0
+          ? `<td class="proxy-name-cell" rowspan="${pxList.length}" style="vertical-align:top;padding-top:12px;">${esc(p.name)}
+              <button class="btn btn-ghost btn-sm" data-add-proxy-for="${p.id}" style="display:block;margin-top:6px;padding:2px 8px;font-size:11px;">+ Proxy</button>
+             </td>`
+          : ''}
+        <td>
+          <div class="preview-bubble" style="display:inline-flex;">${esc(px.prefix||'')}<strong class="preview-name" style="white-space:pre;">${esc(p.name)}</strong>${esc(px.suffix||'')}</div>
+          <span style="font-size:11px;color:var(--text3);margin-left:8px;">${esc((px.prefix||'')||'(aucun)')} · ${esc((px.suffix||'')||'(aucun)')}</span>
+        </td>
+        <td class="proxy-actions-cell"><div class="proxy-row-actions" style="gap:4px;">
+          <button class="btn btn-ghost btn-sm btn-icon" data-proxy-edit="${px.id}" title="Modifier ce proxy">✎</button>
+          <button class="btn btn-danger btn-sm btn-icon" data-proxy-del="${px.id}" title="Supprimer ce proxy">✕</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+    return proxyRows;
   }).join('');
 
   tbody.querySelectorAll('[data-proxy-edit]').forEach(el => {
@@ -547,15 +549,17 @@ function renderProxys() {
   tbody.querySelectorAll('[data-add-proxy-for]').forEach(btn => {
     btn.addEventListener('click', e => { e.stopPropagation(); const p=prenoms.find(x=>x.id===btn.dataset.addProxyFor); if(p) openProxyModal(null,p); });
   });
-  tbody.querySelectorAll('[data-proxy-del-all]').forEach(btn => {
+  tbody.querySelectorAll('[data-proxy-del]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const p      = prenoms.find(x=>x.id===btn.dataset.proxyDelAll);
-      const pxList = proxys.filter(x=>x.prenomId===btn.dataset.proxyDelAll);
-      openConfirm(`Supprimer ${pxList.length>1?'tous les proxys':'le proxy'} de "${p?p.name:'?'}" ?`, async () => {
-        for (const px of pxList) await dbDelete('proxys', px.id);
-        proxys = proxys.filter(x=>x.prenomId!==btn.dataset.proxyDelAll);
-        toast('Proxy(s) supprimé(s).','success'); logHistory('Proxy(s) supprimé(s)', 'proxy');
+      const px = proxys.find(x=>x.id===btn.dataset.proxyDel);
+      if (!px) return;
+      const p  = prenoms.find(x=>x.id===px.prenomId);
+      const proxyStr = (px.prefix||'') + 'texte' + (px.suffix||'');
+      openConfirm(`Supprimer le proxy "${proxyStr}" de "${p?p.name:'?'}" ?`, async () => {
+        await dbDelete('proxys', px.id);
+        proxys = proxys.filter(x=>x.id!==px.id);
+        toast('Proxy supprimé.','success'); logHistory('Proxy supprimé', 'proxy');
         renderProxys(); renderNoProxyBanner(); renderPrenoms(); renderProxySideList(); updateStats();
       });
     });
@@ -571,6 +575,92 @@ document.querySelectorAll('[data-proxy-sort]').forEach(btn => {
   });
 });
 document.getElementById('proxy-search').addEventListener('input', e => { proxySearch=e.target.value.trim(); renderProxys(); });
+
+// ── RÉSOLUTION DE CONFLITS ──
+function openConflictResolver(conflictKey) {
+  const [prefix, suffix] = conflictKey.split('|');
+  // Trouver tous les proxys qui ont ce préfixe+suffixe
+  const conflictPxs = proxys.filter(px => (px.prefix||'')=== prefix && (px.suffix||'')===suffix);
+  if (conflictPxs.length < 2) { toast('Conflit déjà résolu.', 'info'); return; }
+
+  // Créer le modal de résolution
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open';
+  overlay.style.zIndex = '300';
+  overlay.id = 'modal-conflict-resolver';
+
+  const proxyStr = (prefix||'') + 'texte' + (suffix||'');
+
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:700px;">
+      <div class="modal-header">
+        <div class="modal-title">⚠ Conflit — <span style="color:var(--accent2);">${esc(proxyStr)}</span></div>
+        <button class="modal-close" id="btn-conflict-close">✕</button>
+      </div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:20px;">Ce proxy est utilisé par plusieurs prénoms. Modifie l'un d'eux pour résoudre le conflit.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+        ${conflictPxs.map((px, i) => {
+          const p = prenoms.find(x=>x.id===px.prenomId);
+          return `<div style="background:var(--bg3);border:1px solid rgba(232,122,122,0.3);border-radius:var(--radius);padding:16px;">
+            <div style="font-size:16px;font-family:'Cormorant Garamond',serif;color:var(--accent2);margin-bottom:12px;">${esc(p?p.name:'?')}</div>
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
+              <div style="flex:1;">
+                <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">Préfixe</label>
+                <input class="input conflict-prefix-${i}" value="${esc(px.prefix||'')}" placeholder="Préfixe" style="margin-top:4px;"/>
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">Suffixe</label>
+                <input class="input conflict-suffix-${i}" value="${esc(px.suffix||'')}" placeholder="Suffixe" style="margin-top:4px;"/>
+              </div>
+            </div>
+            <div class="preview-bubble" id="conflict-preview-${i}">${esc(px.prefix||'')}<strong class="preview-name">${esc(p?p.name:'?')}</strong>${esc(px.suffix||'')}</div>
+            <button class="btn btn-primary" style="margin-top:12px;width:100%;" data-conflict-save="${px.id}" data-conflict-idx="${i}">✓ Enregistrer</button>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="modal-footer"><button class="btn btn-ghost" id="btn-conflict-cancel">Fermer</button></div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  // Aperçu en temps réel
+  conflictPxs.forEach((px, i) => {
+    const p = prenoms.find(x=>x.id===px.prenomId);
+    const prefixInp = overlay.querySelector(`.conflict-prefix-${i}`);
+    const suffixInp = overlay.querySelector(`.conflict-suffix-${i}`);
+    const preview   = overlay.querySelector(`#conflict-preview-${i}`);
+    const updatePreview = () => {
+      if (preview) preview.innerHTML = `${esc(prefixInp.value)}<strong class="preview-name">${esc(p?p.name:'?')}</strong>${esc(suffixInp.value)}`;
+    };
+    prefixInp?.addEventListener('input', updatePreview);
+    suffixInp?.addEventListener('input', updatePreview);
+  });
+
+  // Sauvegarder
+  overlay.querySelectorAll('[data-conflict-save]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const pxId = btn.dataset.conflictSave;
+      const idx  = parseInt(btn.dataset.conflictIdx);
+      const px   = proxys.find(x=>x.id===pxId);
+      if (!px) return;
+      const newPrefix = (overlay.querySelector(`.conflict-prefix-${idx}`)?.value || '').trim();
+      const newSuffix = (overlay.querySelector(`.conflict-suffix-${idx}`)?.value || '').trim();
+      if (!newPrefix && !newSuffix) { toast('Préfixe ou suffixe requis.','error'); return; }
+      // Vérifier nouveau conflit
+      const dup = proxys.find(x => x.id!==pxId && (x.prefix||'')=== newPrefix && (x.suffix||'')===newSuffix);
+      if (dup) { toast('Ce proxy est encore en conflit avec un autre prénom.','error'); return; }
+      px.prefix = newPrefix; px.suffix = newSuffix;
+      await dbPut('proxys', px);
+      toast('Proxy modifié.', 'success');
+      overlay.remove();
+      renderProxys(); detectProxyConflicts();
+    });
+  });
+
+  overlay.querySelector('#btn-conflict-close')?.addEventListener('click',  () => overlay.remove());
+  overlay.querySelector('#btn-conflict-cancel')?.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target===overlay) overlay.remove(); });
+}
 
 // ── SIMULATEUR DE PROXY ──
 function runProxySimulator(input) {
@@ -660,9 +750,14 @@ function detectProxyConflicts() {
     const [prefix, suffix] = key.split('|');
     const names = ids.map(id => { const p=prenoms.find(x=>x.id===id); return p?p.name:'?'; }).join(', ');
     const proxyStr = `${prefix}nom${suffix}`;
-    return `<span class="conflict-chip">
+    return `<span class="conflict-chip" style="cursor:pointer;" data-conflict-key="${esc(key)}" title="Cliquer pour résoudre">
       <span class="conflict-chip-proxy">${esc(proxyStr)}</span>
       <span class="conflict-chip-names">→ ${esc(names)}</span>
+      <span style="font-size:10px;margin-left:4px;color:var(--accent2);">✎ Résoudre</span>
     </span>`;
   }).join('');
+  // Listeners sur les chips de conflit
+  listEl.querySelectorAll('[data-conflict-key]').forEach(chip => {
+    chip.addEventListener('click', () => openConflictResolver(chip.dataset.conflictKey));
+  });
 }
