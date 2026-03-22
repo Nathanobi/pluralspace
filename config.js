@@ -655,6 +655,42 @@ document.getElementById('btn-export-pk-api').addEventListener('click', async () 
 });
 
 // ── RÉINITIALISATION ──
+document.getElementById('btn-clean-orphans').addEventListener('click', async () => {
+  const prenomIds = new Set(prenoms.map(p => p.id));
+
+  // Compter ce qui sera supprimé
+  const orphanProxys  = proxys.filter(x => !prenomIds.has(x.prenomId));
+  const orphanProfils = profils.filter(x => !prenomIds.has(x.prenomId));
+  const orphanImages  = images.filter(x => x.prenomId && !prenomIds.has(x.prenomId));
+
+  const total = orphanProxys.length + orphanProfils.length + orphanImages.length;
+  if (total === 0) { toast('Aucun orphelin trouvé — données déjà propres ✓', 'success'); return; }
+
+  openConfirm(
+    `Supprimer ${total} élément(s) orphelin(s) ?
+${orphanProxys.length} proxy(s), ${orphanProfils.length} profil(s), ${orphanImages.length} image(s) sans prénom existant.`,
+    async () => {
+      let count = 0;
+      for (const px of orphanProxys) { await dbDelete('proxys',  px.id); count++; }
+      for (const pr of orphanProfils) { await dbDelete('profils', pr.id); count++; }
+      for (const img of orphanImages) {
+        // Délier l'image plutôt que la supprimer (elle peut avoir une valeur)
+        img.prenomId = null;
+        await dbPut('images', img);
+        count++;
+      }
+      proxys  = proxys.filter(x => prenomIds.has(x.prenomId));
+      profils = profils.filter(x => prenomIds.has(x.prenomId));
+      images  = await dbGetAll('images');
+
+      toast(`${count} élément(s) nettoyé(s).`, 'success');
+      logHistory(`Nettoyage orphelins : ${count} éléments`, 'system');
+      renderProxys(); renderProfils(); renderImages();
+      renderNoProxyBanner(); updateStats(); renderConfigStats();
+    }
+  );
+});
+
 document.getElementById('btn-reset-all').addEventListener('click', () => {
   openConfirm('⚠ Supprimer TOUTES les données ? Cette action est irréversible.', () => {
     openConfirm('Confirmer une seconde fois : tout supprimer ?', async () => {
