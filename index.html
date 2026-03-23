@@ -50,7 +50,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.73</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.74</button>
       </div>
 
       <!-- Système PluralKit -->
@@ -662,7 +662,8 @@
         </div>
         <div class="config-accordion-body" id="accordion-donnees" style="display:none;">
           <div class="config-card">
-<div class="config-row-control" id="config-stats-display" style="display:flex;gap:16px;flex-wrap:wrap;"></div>
+<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:500;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border2);">◇ Statistiques</div>
+<div class="config-row-control" id="config-stats-display" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border2);"></div>
           <div class="config-row">
             <div class="config-row-label">
               <div class="config-row-name">Exporter les données</div>
@@ -688,15 +689,7 @@
               <input type="file" id="import-file-input" accept=".json" style="display:none;" />
             </div>
           </div>
-          <div class="config-row">
-            <div class="config-row-label">
-              <div class="config-row-name">Statistiques</div>
-              <div class="config-row-desc">Résumé de vos données actuelles</div>
-            </div>
-            
-          </div>
-                
-      </div>
+        </div>
           <div class="config-card">
           <div class="config-row">
             <div class="config-row-label">
@@ -1187,7 +1180,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.73';
+  const APP_VERSION = '1.74';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {
