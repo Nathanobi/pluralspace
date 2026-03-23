@@ -125,6 +125,31 @@
     /* CONFIG PAGE */
     .config-section { margin-bottom: 32px; }
     .config-section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 500; margin-bottom: 12px; padding-left: 2px; }
+    /* Accordéons config */
+    .config-accordions { display: flex; flex-direction: column; gap: 8px; }
+    .config-accordion { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
+    .config-accordion-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; cursor: pointer; user-select: none; transition: background var(--transition); }
+    .config-accordion-header:hover { background: var(--bg3); }
+    .config-accordion-header.open { background: var(--bg3); border-bottom: 1px solid var(--border2); }
+    .config-accordion-icon { font-size: 16px; color: var(--accent3); width: 20px; text-align: center; flex-shrink: 0; }
+    .config-accordion-title { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+    .config-accordion-arrow { font-size: 10px; color: var(--text3); transition: transform var(--transition); flex-shrink: 0; }
+    .config-accordion-header.open .config-accordion-arrow { transform: rotate(90deg); }
+    .config-accordion-body { padding: 20px; display: flex; flex-direction: column; gap: 0; }
+    .config-accordion-body .config-section { margin-bottom: 24px; }
+    .config-accordion-body .config-section:last-child { margin-bottom: 0; }
+    /* Accordéons Config */
+    .config-accordion { border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; margin-bottom: 10px; }
+    .config-accordion-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; cursor: pointer; user-select: none; transition: background var(--transition); background: var(--bg2); }
+    .config-accordion-header:hover { background: var(--bg3); }
+    .config-accordion-header.open { background: var(--bg3); border-bottom: 1px solid var(--border2); }
+    .config-accordion-icon { font-size: 16px; color: var(--accent3); flex-shrink: 0; }
+    .config-accordion-title { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+    .config-accordion-arrow { font-size: 10px; color: var(--text3); transition: transform var(--transition); flex-shrink: 0; }
+    .config-accordion-header.open .config-accordion-arrow { transform: rotate(90deg); }
+    .config-accordion-body { padding: 20px; background: var(--bg1); display: flex; flex-direction: column; gap: 0; }
+    .config-accordion-body .config-section { margin-bottom: 24px; }
+    .config-accordion-body .config-section:last-child { margin-bottom: 0; }
     .config-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
     .config-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 20px; border-bottom: 1px solid var(--border2); flex-wrap: wrap; }
     .config-row:last-child { border-bottom: none; }

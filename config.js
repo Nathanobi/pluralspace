@@ -1,3 +1,14 @@
+// ── ACCORDÉONS CONFIGURATION ──
+document.querySelectorAll('.config-accordion-header').forEach(header => {
+  header.addEventListener('click', () => {
+    const slug   = header.dataset.accordion;
+    const body   = document.getElementById('accordion-' + slug);
+    const isOpen = header.classList.contains('open');
+    header.classList.toggle('open', !isOpen);
+    if (body) body.style.display = isOpen ? 'none' : '';
+  });
+});
+
 // ── CONFIGURATION PAGE ──
 
 // ── HISTORIQUE DES MODIFICATIONS ──
