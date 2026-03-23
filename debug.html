@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plural Space — Debug</title>
+  <style>
+    :root {
+      --bg:      #0f0d17;
+      --bg2:     #161323;
+      --bg3:     #1e1a2e;
+      --bg4:     #2a2540;
+      --border:  #3a3550;
+      --border2: #2a2540;
+      --text:    #e8e4f0;
+      --text2:   #b0a8c8;
+      --text3:   #6b5f80;
+      --accent:  #9b7fd4;
+      --accent2: #c9a0dc;
+      --success: #7ec8a0;
+      --warn:    #e8c87a;
+      --danger:  #e87a7a;
+      --info:    #78b4dc;
+      --font: 'system-ui', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+    header { background: var(--bg2); border-bottom: 1px solid var(--border2); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    header h1 { font-size: 18px; font-weight: 600; color: var(--accent2); }
+    header p  { font-size: 12px; color: var(--text3); margin-top: 2px; }
+    .header-actions { display: flex; gap: 8px; }
+
+    main { max-width: 900px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; gap: 20px; }
+
+    .card { background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px; overflow: hidden; }
+    .card-header { padding: 14px 18px; border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; user-select: none; }
+    .card-header:hover { background: var(--bg3); }
+    .card-title { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .card-arrow { font-size: 10px; color: var(--text3); transition: transform .2s; }
+    .card-header.open .card-arrow { transform: rotate(90deg); }
+    .card-body { padding: 16px 18px; display: none; }
+    .card-body.open { display: block; }
+
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); flex-shrink: 0; transition: background .3s; }
+    .status-dot.ok      { background: var(--success); }
+    .status-dot.warn    { background: var(--warn); }
+    .status-dot.error   { background: var(--danger); }
+    .status-dot.running { background: var(--info); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border2); flex-wrap: wrap; }
+    .row:last-child { border-bottom: none; }
+    .row-label { font-size: 13px; color: var(--text2); flex: 1; min-width: 160px; }
+    .row-label small { display: block; font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .row-value { font-size: 12px; color: var(--text); text-align: right; max-width: 60%; word-break: break-word; }
+    .row-value.ok    { color: var(--success); }
+    .row-value.warn  { color: var(--warn); }
+    .row-value.error { color: var(--danger); }
+    .row-value.info  { color: var(--info); }
+
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); font-family: inherit; transition: all .2s; }
+    .btn:hover { background: var(--bg4); color: var(--text); border-color: var(--accent); }
+    .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .btn-primary:hover { opacity: .85; }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+    .btn-danger { color: var(--danger); border-color: rgba(232,122,122,.3); }
+    .btn-danger:hover { background: rgba(232,122,122,.1); }
+
+    .input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; padding: 8px 12px; font-family: inherit; }
+    .input:focus { outline: none; border-color: var(--accent); }
+    textarea.input { resize: vertical; font-family: monospace; font-size: 12px; }
+
+    .log-area { background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+    .log-line { padding: 2px 6px; border-radius: 3px; line-height: 1.5; word-break: break-all; }
+    .log-line.info    { color: var(--text2); }
+    .log-line.ok      { color: var(--success); background: rgba(126,200,160,.08); }
+    .log-line.warn    { color: var(--warn);    background: rgba(232,200,122,.08); }
+    .log-line.error   { color: var(--danger);  background: rgba(232,122,122,.08); }
+    .log-line.section { color: var(--accent2); font-weight: 700; margin-top: 6px; }
+    .log-line.data    { color: var(--info); }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .badge-ok    { background: rgba(126,200,160,.15); color: var(--success); border: 1px solid rgba(126,200,160,.3); }
+    .badge-warn  { background: rgba(232,200,122,.15); color: var(--warn);    border: 1px solid rgba(232,200,122,.3); }
+    .badge-error { background: rgba(232,122,122,.15); color: var(--danger);  border: 1px solid rgba(232,122,122,.3); }
+    .badge-info  { background: rgba(120,180,220,.15); color: var(--info);    border: 1px solid rgba(120,180,220,.3); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .sep { height: 1px; background: var(--border2); margin: 12px 0; }
+    .label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text3); margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>✺ Plural Space — Debug</h1>
+    <p>Page de debug indépendante — hors service worker</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn" id="btn-run-all">▶ Tout vérifier</button>
+    <button class="btn" id="btn-copy-report">⎘ Copier le rapport</button>
+    <button class="btn btn-danger" id="btn-clear-logs">✕ Effacer</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ENVIRONNEMENT -->
+  <div class="card" id="card-env">
+    <div class="card-header open" onclick="toggleCard('env')">
+      <div class="card-title"><span class="status-dot" id="dot-env"></span>🖥 Environnement</div>
+      <span class="card-arrow">▸</span>
+    </div>
+    <div class="card-body open" id="body-env">
+      <div id="env-rows"></div>
+    </div>
+  </div>
+
+  <!-- CONNECTIVITÉ -->
+  <div class="card" id="card-net">
+    <div class="card-header" onclick="toggleCard('net')">
+      <div class="card-title"><span class="status-dot" id="dot-net"></span>🌐 Connectivité</div>
+      <span class="card-arrow">▸</span>
+    </div>
+    <div class="card-body" id="body-net">
+      <div id="net-rows"></div>
+      <div style="margin-top:12px;">
+        <button class="btn btn-sm" id="btn-test-net">▶ Vérifier la connectivité</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH GOOGLE -->
+  <div class="card" id="card-auth">
+    <div class="card-header" onclick="toggleCard('auth')">
+      <div class="card-title"><span class="status-dot" id="dot-auth"></span>🔑 Authentification Google</div>
+      <span class="card-arrow">▸</span>
+    </div>
+    <div class="card-body" id="body-auth">
+      <div id="auth-rows"></div>
+      <div class="sep"></div>
+      <div class="label">Vérification manuelle</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Lance une tentative de connexion Google et log chaque étape.</p>
+      <button class="btn btn-primary btn-sm" id="btn-test-auth">▶ Vérifier la connexion Google</button>
+      <div id="auth-log" class="log-area" style="margin-top:12px;display:none;"></div>
+    </div>
+  </div>
+
+  <!-- PINTEREST / CORS -->
+  <div class="card" id="card-pinterest">
+    <div class="card-header" onclick="toggleCard('pinterest')">
+      <div class="card-title"><span class="status-dot" id="dot-pinterest"></span>📌 Pinterest & Proxies CORS</div>
+      <span class="card-arrow">▸</span>
+    </div>
+    <div class="card-body" id="body-pinterest">
+      <div class="label">URL à analyser</div>
+      <input type="text" class="input" id="pinterest-url" placeholder="https://www.pinterest.com/pin/… ou https://i.pinimg.com/…" style="margin-bottom:10px;" />
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="btn btn-primary btn-sm" id="btn-test-pinterest">▶ Vérifier les proxies</button>
+        <button class="btn btn-sm" id="btn-test-oembed">▶ Vérifier oEmbed</button>
+      </div>
+      <div id="pinterest-log" class="log-area" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- IMGBB -->
+  <div class="card" id="card-imgbb">
+    <div class="card-header" onclick="toggleCard('imgbb')">
+      <div class="card-title"><span class="status-dot" id="dot-imgbb"></span>✧ Hébergement imgbb</div>
+      <span class="card-arrow">▸</span>
+    </div>
+    <div class="card-body" id="body-imgbb">
+      <div class="grid-2" style="margin-bottom:12px;">
+        <div>
+          <div class="label">Clé API imgbb</div>
+          <input type="password" class="input" id="imgbb-key" placeholder="Votre clé API…" />
+        </div>
+        <div>
+          <div class="label">Image à envoyer</div>
+          <input type="file" id="imgbb-file" accept="image/*" class="input" style="padding:5px;" />
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-test-imgbb">▶ Vérifier l'upload imgbb</button>
+      <div id="imgbb-log" class="log-area" style="margin-top:12px;display:none;"></div>
+    </div>
+  </div>
+
+  <!-- PLURALKIT API -->
+  <div class="card" id="card-pk">
+    <div class="card-header" onclick="toggleCard('pk')">
+      <div class="card-title"><span class="status-dot" id="dot-pk"></span>⟡ PluralKit API</div>
+      <span class="card-arrow">▸</span>
+    </div>
+    <div class="card-body" id="body-pk">
+      <div style="margin-bottom:12px;">
+        <div class="label">Token PluralKit</div>
+        <input type="password" class="input" id="pk-token" placeholder="Votre token PK…" />
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-test-pk">▶ Vérifier l'API PluralKit</button>
+      <div id="pk-log" class="log-area" style="margin-top:12px;display:none;"></div>
+    </div>
+  </div>
+
+  <!-- LOG GLOBAL -->
+  <div class="card">
+    <div class="card-header open" onclick="toggleCard('globallog')">
+      <div class="card-title">📋 Journal global</div>
+      <span class="card-arrow">▸</span>
+    </div>
+    <div class="card-body open" id="body-globallog">
+      <div id="global-log" class="log-area" style="min-height:80px;"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── UTILITAIRES ──
+const FIREBASE_CONFIG = {
+  apiKey:            'AIzaSyDS7qaE9sCfGqIYlQHQOq0Z-wuAbE3acKI',
+  authDomain:        'plural-space.firebaseapp.com',
+  projectId:         'plural-space',
+  storageBucket:     'plural-space.firebasestorage.app',
+  messagingSenderId: '543388676990',
+  appId:             '1:543388676990:web:a8f96d0b48ce5b78b6f92f',
+};
+
+const globalLogs = [];
+
+function log(msg, type='info', targetId='global-log') {
+  const ts   = new Date().toLocaleTimeString('fr-FR');
+  const line = `[${ts}] ${msg}`;
+  globalLogs.push({ ts, msg, type });
+
+  const el = document.getElementById(targetId);
+  if (el) {
+    el.style.display = '';
+    const div = document.createElement('div');
+    div.className = 'log-line ' + type;
+    div.textContent = line;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+  // Aussi dans le global log si c'est un log ciblé
+  if (targetId !== 'global-log') {
+    const gel = document.getElementById('global-log');
+    if (gel) {
+      const div = document.createElement('div');
+      div.className = 'log-line ' + type;
+      div.textContent = line;
+      gel.appendChild(div);
+      gel.scrollTop = gel.scrollHeight;
+    }
+  }
+}
+
+function logSection(title, targetId='global-log') {
+  log('── ' + title + ' ──', 'section', targetId);
+}
+
+function setDot(id, state) {
+  const el = document.getElementById('dot-' + id);
+  if (el) { el.className = 'status-dot ' + state; }
+}
+
+function row(label, value, valueClass='', note='') {
+  return `<div class="row">
+    <div class="row-label">${label}${note ? `<small>${note}</small>` : ''}</div>
+    <div class="row-value ${valueClass}">${value}</div>
+  </div>`;
+}
+
+function toggleCard(id) {
+  const header = document.querySelector(`#card-${id} .card-header`);
+  const body   = document.getElementById(`body-${id}`);
+  if (!header || !body) return;
+  const isOpen = header.classList.contains('open');
+  header.classList.toggle('open', !isOpen);
+  body.classList.toggle('open', !isOpen);
+}
+
+// ── ENVIRONNEMENT ──
+function detectEnv() {
+  logSection('Environnement');
+  const ua         = navigator.userAgent;
+  const isIOS      = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isAndroid  = /Android/.test(ua);
+  const isMac      = /Macintosh/.test(ua);
+  const isWindows  = /Windows/.test(ua);
+  const isStandalone = window.navigator.standalone === true;
+  const isSafari   = /Safari/.test(ua) && !/Chrome/.test(ua);
+  const isChrome   = /Chrome/.test(ua) && !/Edg/.test(ua);
+  const isFirefox  = /Firefox/.test(ua);
+  const isEdge     = /Edg/.test(ua);
+
+  let platform = isIOS ? 'iOS' : isAndroid ? 'Android' : isMac ? 'macOS' : isWindows ? 'Windows' : 'Inconnu';
+  let browser  = isSafari ? 'Safari' : isChrome ? 'Chrome' : isFirefox ? 'Firefox' : isEdge ? 'Edge' : 'Inconnu';
+
+  // Version iOS
+  let iosVersion = '';
+  if (isIOS) {
+    const m = ua.match(/OS (\d+)_(\d+)/);
+    if (m) iosVersion = m[1] + '.' + m[2];
+  }
+
+  // PWA mode
+  const displayMode = window.matchMedia('(display-mode: standalone)').matches ? 'standalone (PWA)' :
+                      window.matchMedia('(display-mode: minimal-ui)').matches ? 'minimal-ui' : 'browser';
+
+  const rows = [
+    row('Plateforme',           platform,                        platform === 'iOS' ? 'warn' : 'ok'),
+    row('Navigateur',           browser,                         ''),
+    row('Version iOS',          iosVersion || '—',               isIOS ? 'info' : ''),
+    row('Mode affichage',        displayMode,                     isStandalone ? 'warn' : 'info', isStandalone ? 'PWA standalone — restrictions OAuth actives' : ''),
+    row('User Agent',           ua,                              'info'),
+    row('navigator.standalone', String(window.navigator.standalone), isStandalone ? 'warn' : 'ok'),
+    row('display-mode match',   displayMode,                     ''),
+    row('Langue',               navigator.language,              ''),
+    row('En ligne',             navigator.onLine ? 'Oui' : 'Non', navigator.onLine ? 'ok' : 'error'),
+    row('IndexedDB',            typeof indexedDB !== 'undefined' ? 'Disponible' : 'Indisponible', typeof indexedDB !== 'undefined' ? 'ok' : 'error'),
+    row('localStorage',         (() => { try { localStorage.setItem('_t','1'); localStorage.removeItem('_t'); return 'Disponible'; } catch(e) { return 'Bloqué : ' + e.message; } })(), ''),
+    row('Clipboard API',        navigator.clipboard ? 'Disponible' : 'Indisponible', navigator.clipboard ? 'ok' : 'warn'),
+    row('Service Worker',       'serviceWorker' in navigator ? 'Supporté' : 'Non supporté', 'serviceWorker' in navigator ? 'ok' : 'warn'),
+    row('WebCrypto',            window.crypto?.subtle ? 'Disponible' : 'Indisponible', ''),
+  ];
+
+  document.getElementById('env-rows').innerHTML = rows.join('');
+  setDot('env', 'ok');
+
+  log('Plateforme : ' + platform + ' / ' + browser + (iosVersion ? ' iOS ' + iosVersion : '') + ' / ' + displayMode);
+  if (isStandalone) log('⚠ Mode PWA standalone détecté — peut bloquer OAuth redirect', 'warn');
+}
+
+// ── CONNECTIVITÉ ──
+async function testConnectivity() {
+  logSection('Connectivité', 'net-rows');
+  setDot('net', 'running');
+  document.getElementById('net-rows').innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0;">⏳ Vérification en cours…</div>';
+
+  const endpoints = [
+    { name: 'Firebase Auth',       url: 'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + FIREBASE_CONFIG.apiKey, method: 'POST', body: '{}' },
+    { name: 'Firestore',           url: 'https://firestore.googleapis.com/v1/projects/' + FIREBASE_CONFIG.projectId + '/databases/(default)/documents', method: 'GET' },
+    { name: 'PluralKit API',       url: 'https://api.pluralkit.me/v2/meta', method: 'GET' },
+    { name: 'imgbb API',           url: 'https://api.imgbb.com/', method: 'GET' },
+    { name: 'corsproxy.io',        url: 'https://corsproxy.io/?https://example.com', method: 'GET' },
+    { name: 'allorigins.win',      url: 'https://api.allorigins.win/raw?url=https://example.com', method: 'GET' },
+    { name: 'images.weserv.nl',    url: 'https://images.weserv.nl/?url=https://httpbin.org/image/png', method: 'GET' },
+    { name: 'Pinterest oEmbed',    url: 'https://www.pinterest.com/oembed.json?url=https://www.pinterest.com/', method: 'GET' },
+  ];
+
+  const rows = [];
+  let allOk = true;
+
+  for (const ep of endpoints) {
+    const t0 = Date.now();
+    try {
+      const opts = { method: ep.method, signal: AbortSignal.timeout(8000) };
+      if (ep.body) { opts.body = ep.body; opts.headers = { 'Content-Type': 'application/json' }; }
+      const resp = await fetch(ep.url, opts);
+      const ms   = Date.now() - t0;
+      const cls  = resp.ok ? 'ok' : 'warn';
+      if (!resp.ok) allOk = false;
+      rows.push(row(ep.name, `HTTP ${resp.status} — ${ms}ms`, cls));
+      log(`${ep.name} : HTTP ${resp.status} (${ms}ms)`, resp.ok ? 'ok' : 'warn', 'global-log');
+    } catch(e) {
+      const ms = Date.now() - t0;
+      allOk = false;
+      rows.push(row(ep.name, `Erreur : ${e.message}`, 'error', e.name === 'TimeoutError' ? 'Timeout (>8s)' : ''));
+      log(`${ep.name} : ERREUR — ${e.message}`, 'error', 'global-log');
+    }
+  }
+
+  document.getElementById('net-rows').innerHTML = rows.join('');
+  setDot('net', allOk ? 'ok' : 'warn');
+}
+
+// ── AUTH GOOGLE ──
+function testGoogleAuth() {
+  const logEl = 'auth-log';
+  logSection('Vérif Auth Google', logEl);
+  setDot('auth', 'running');
+
+  // Détecter l'environnement
+  const isIOS      = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+
+  log('Environnement : ' + (isIOS ? 'iOS' : 'Non-iOS') + ' / ' + (isStandalone ? 'PWA standalone' : 'browser'), 'info', logEl);
+  log('Stratégie attendue : ' + (isIOS ? 'signInWithRedirect' : 'signInWithPopup'), 'info', logEl);
+
+  // Charger Firebase SDK
+  if (typeof firebase === 'undefined') {
+    log('Chargement du SDK Firebase…', 'info', logEl);
+    const scripts = [
+      'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
+      'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
+    ];
+    let loaded = 0;
+    scripts.forEach(src => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => {
+        loaded++;
+        log('Script chargé : ' + src.split('/').pop(), 'ok', logEl);
+        if (loaded === scripts.length) initFirebaseAuth(logEl, isIOS, isStandalone);
+      };
+      s.onerror = () => log('Erreur chargement : ' + src, 'error', logEl);
+      document.head.appendChild(s);
+    });
+  } else {
+    initFirebaseAuth(logEl, isIOS, isStandalone);
+  }
+}
+
+function initFirebaseAuth(logEl, isIOS, isStandalone) {
+  try {
+    const app  = firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(FIREBASE_CONFIG);
+    const auth = firebase.auth();
+    log('Firebase initialisé ✓ authDomain=' + FIREBASE_CONFIG.authDomain, 'ok', logEl);
+
+    // Vérifier getRedirectResult d'abord
+    auth.getRedirectResult().then(result => {
+      if (result && result.user) {
+        log('getRedirectResult : utilisateur connecté → ' + result.user.email, 'ok', logEl);
+        setDot('auth', 'ok');
+      } else {
+        log('getRedirectResult : pas de redirect en attente (normal)', 'info', logEl);
+      }
+    }).catch(e => {
+      log('getRedirectResult erreur : ' + e.code + ' — ' + e.message, e.code === 'auth/no-auth-event' ? 'info' : 'error', logEl);
+    });
+
+    // Lancer la connexion
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    if (isIOS) {
+      log('iOS détecté → vérif signInWithRedirect', 'info', logEl);
+      log('⚠ La page va se recharger — vérifiez le getRedirectResult après retour', 'warn', logEl);
+      setTimeout(() => {
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
+          log('Persistence LOCAL définie ✓', 'ok', logEl);
+          return auth.signInWithRedirect(provider);
+        }).catch(e => log('Erreur : ' + e.message, 'error', logEl));
+      }, 2000);
+    } else {
+      log('Non-iOS → vérif signInWithPopup', 'info', logEl);
+      auth.signInWithPopup(provider).then(result => {
+        log('signInWithPopup réussi → ' + result.user.email, 'ok', logEl);
+        setDot('auth', 'ok');
+      }).catch(e => {
+        log('signInWithPopup erreur : ' + e.code + ' — ' + e.message, 'error', logEl);
+        setDot('auth', 'error');
+      });
+    }
+  } catch(e) {
+    log('Erreur init Firebase : ' + e.message, 'error', logEl);
+    setDot('auth', 'error');
+  }
+}
+
+// ── PINTEREST CORS ──
+async function testPinterest() {
+  const logEl = 'pinterest-log';
+  const url   = document.getElementById('pinterest-url').value.trim();
+  if (!url) { log('⚠ Entrez une URL Pinterest d\'abord', 'warn', logEl); return; }
+
+  logSection('Vérif Pinterest — ' + url, logEl);
+  setDot('pinterest', 'running');
+
+  const proxies = [
+    { name: 'Direct',           fn: u => u },
+    { name: 'corsproxy.io',     fn: u => 'https://corsproxy.io/?' + encodeURIComponent(u) },
+    { name: 'allorigins.win',   fn: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+    { name: 'images.weserv.nl', fn: u => 'https://images.weserv.nl/?url=' + encodeURIComponent(u) },
+  ];
+
+  let anyOk = false;
+  for (const proxy of proxies) {
+    const proxyUrl = proxy.fn(url);
+    log(`Vérif via ${proxy.name}…`, 'info', logEl);
+    const t0 = Date.now();
+    try {
+      const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+      const ms   = Date.now() - t0;
+      const ct   = resp.headers.get('content-type') || '?';
+      log(`  → HTTP ${resp.status} (${ms}ms) type=${ct}`, resp.ok ? 'ok' : 'warn', logEl);
+      if (resp.ok && ct.startsWith('image/')) {
+        log(`  → Image reçue via ${proxy.name} ✓`, 'ok', logEl);
+        anyOk = true;
+      } else if (resp.ok) {
+        const text = await resp.text();
+        log(`  → Contenu (${text.length} chars) : ${text.slice(0, 120)}`, 'data', logEl);
+      }
+    } catch(e) {
+      log(`  → ERREUR : ${e.message}`, 'error', logEl);
+    }
+  }
+  setDot('pinterest', anyOk ? 'ok' : 'error');
+}
+
+async function testOEmbed() {
+  const logEl = 'pinterest-log';
+  const url   = document.getElementById('pinterest-url').value.trim();
+  if (!url) { log('⚠ Entrez une URL Pinterest', 'warn', logEl); return; }
+
+  logSection('Vérif oEmbed — ' + url, logEl);
+  const oembedUrl = 'https://www.pinterest.com/oembed.json?url=' + encodeURIComponent(url);
+  const proxies = [
+    { name: 'Direct',         fn: u => u },
+    { name: 'corsproxy.io',   fn: u => 'https://corsproxy.io/?' + encodeURIComponent(u) },
+    { name: 'allorigins.win', fn: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+  ];
+  for (const proxy of proxies) {
+    const proxyUrl = proxy.fn(oembedUrl);
+    log(`oEmbed via ${proxy.name}…`, 'info', logEl);
+    try {
+      const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+      const text = await resp.text();
+      log(`  HTTP ${resp.status} : ${text.slice(0,200)}`, resp.ok ? 'ok' : 'warn', logEl);
+      if (resp.ok) {
+        try {
+          const data = JSON.parse(text);
+          log(`  thumbnail_url = ${data.thumbnail_url || '—'}`, 'data', logEl);
+        } catch(e) {}
+      }
+    } catch(e) {
+      log(`  ERREUR : ${e.message}`, 'error', logEl);
+    }
+  }
+}
+
+// ── IMGBB ──
+async function testImgbb() {
+  const logEl  = 'imgbb-log';
+  const key    = document.getElementById('imgbb-key').value.trim();
+  const file   = document.getElementById('imgbb-file').files[0];
+
+  if (!key)  { log('⚠ Clé API manquante', 'warn', logEl); return; }
+  if (!file) { log('⚠ Sélectionnez une image', 'warn', logEl); return; }
+
+  logSection('Vérif upload imgbb', logEl);
+  setDot('imgbb', 'running');
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const base64 = e.target.result.split(',')[1];
+    log(`Image : ${file.name} (${(file.size/1024).toFixed(1)}KB, ${file.type})`, 'info', logEl);
+    log('Envoi vers imgbb…', 'info', logEl);
+    const t0 = Date.now();
+    try {
+      const form = new FormData();
+      form.append('key', key);
+      form.append('image', base64);
+      const resp = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: form });
+      const data = await resp.json();
+      const ms   = Date.now() - t0;
+      if (data.success) {
+        log(`✓ Upload réussi (${ms}ms)`, 'ok', logEl);
+        log(`  URL : ${data.data.url}`, 'data', logEl);
+        log(`  URL display : ${data.data.display_url}`, 'data', logEl);
+        setDot('imgbb', 'ok');
+      } else {
+        log(`✕ Échec : ${JSON.stringify(data)}`, 'error', logEl);
+        setDot('imgbb', 'error');
+      }
+    } catch(e) {
+      log(`Erreur : ${e.message}`, 'error', logEl);
+      setDot('imgbb', 'error');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── PLURALKIT API ──
+async function testPK() {
+  const logEl = 'pk-log';
+  const token = document.getElementById('pk-token').value.trim();
+  if (!token) { log('⚠ Token manquant', 'warn', logEl); return; }
+
+  logSection('Vérif PluralKit API', logEl);
+  setDot('pk', 'running');
+
+  const endpoints = [
+    { name: '/v2/meta',               url: 'https://api.pluralkit.me/v2/meta',                auth: false },
+    { name: '/v2/systems/@me',        url: 'https://api.pluralkit.me/v2/systems/@me',         auth: true  },
+    { name: '/v2/systems/@me/members',url: 'https://api.pluralkit.me/v2/systems/@me/members', auth: true  },
+  ];
+
+  let allOk = true;
+  for (const ep of endpoints) {
+    const opts = { headers: {} };
+    if (ep.auth) opts.headers['Authorization'] = token;
+    const t0 = Date.now();
+    try {
+      const resp = await fetch(ep.url, opts);
+      const ms   = Date.now() - t0;
+      const data = await resp.json();
+      if (resp.ok) {
+        log(`${ep.name} : HTTP ${resp.status} (${ms}ms) ✓`, 'ok', logEl);
+        if (ep.name === '/v2/systems/@me')
+          log(`  Système : ${data.name} (id=${data.id}, ${data.member_count} membres)`, 'data', logEl);
+        if (ep.name === '/v2/systems/@me/members')
+          log(`  ${Array.isArray(data) ? data.length : '?'} membres reçus`, 'data', logEl);
+      } else {
+        allOk = false;
+        log(`${ep.name} : HTTP ${resp.status} — ${data.message || JSON.stringify(data)}`, 'error', logEl);
+      }
+    } catch(e) {
+      allOk = false;
+      log(`${ep.name} : ERREUR — ${e.message}`, 'error', logEl);
+    }
+  }
+  setDot('pk', allOk ? 'ok' : 'error');
+}
+
+// ── INITIALISATION ──
+function detectAuthEnv() {
+  const isIOS      = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const rows = [
+    row('Firebase authDomain', FIREBASE_CONFIG.authDomain, 'info'),
+    row('iOS détecté',          isIOS ? 'Oui' : 'Non',      isIOS ? 'warn' : 'ok'),
+    row('PWA standalone',       isStandalone ? 'Oui' : 'Non', isStandalone ? 'warn' : 'ok',
+        isStandalone ? 'signInWithRedirect sera utilisé' : 'signInWithPopup sera utilisé'),
+    row('Stratégie OAuth',
+        isIOS && isStandalone ? 'redirect (iOS PWA)' : isIOS ? 'redirect (iOS Safari)' : 'popup',
+        ''),
+  ];
+  document.getElementById('auth-rows').innerHTML = rows.join('');
+}
+
+// ── RAPPORT ──
+function copyReport() {
+  const lines = globalLogs.map(l => `[${l.ts}] [${l.type.toUpperCase()}] ${l.msg}`);
+  const report = [
+    '=== PLURAL SPACE DEBUG REPORT ===',
+    'Date : ' + new Date().toLocaleString('fr-FR'),
+    'UA : ' + navigator.userAgent,
+    '',
+    ...lines,
+    '',
+    '=================================',
+  ].join('\n');
+  navigator.clipboard.writeText(report).then(() => alert('Rapport copié ✓')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = report;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    alert('Rapport copié ✓');
+  });
+}
+
+function clearAllLogs() {
+  globalLogs.length = 0;
+  document.querySelectorAll('.log-area').forEach(el => { el.innerHTML = ''; el.style.display = 'none'; });
+  document.getElementById('global-log').style.display = '';
+}
+
+// ── EVENTS ──
+document.getElementById('btn-run-all').addEventListener('click', async () => {
+  detectEnv();
+  detectAuthEnv();
+  await testConnectivity();
+});
+document.getElementById('btn-copy-report').addEventListener('click', copyReport);
+document.getElementById('btn-clear-logs').addEventListener('click', clearAllLogs);
+document.getElementById('btn-test-net').addEventListener('click', testConnectivity);
+document.getElementById('btn-test-auth').addEventListener('click', testGoogleAuth);
+document.getElementById('btn-test-pinterest').addEventListener('click', testPinterest);
+document.getElementById('btn-test-oembed').addEventListener('click', testOEmbed);
+document.getElementById('btn-test-imgbb').addEventListener('click', testImgbb);
+document.getElementById('btn-test-pk').addEventListener('click', testPK);
+
+// Auto-run au chargement
+detectEnv();
+detectAuthEnv();
+</script>
+</body>
+</html>
