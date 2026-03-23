@@ -50,7 +50,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.71</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.72</button>
       </div>
 
       <!-- Système PluralKit -->
@@ -469,6 +469,12 @@
         <div><div class="page-title">Configuration</div><div class="page-subtitle">Personnalisation et gestion des données</div></div>
       </div>
 
+      <!-- Recherche config -->
+      <div style="margin-bottom:16px;position:relative;">
+        <input type="text" class="input" id="config-search-input" placeholder="🔍  Rechercher un paramètre…" autocomplete="off" />
+        <div id="config-search-results" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);z-index:50;max-height:300px;overflow-y:auto;"></div>
+      </div>
+
       <div class="config-accordions">
 
       <div class="config-accordion" id="acc-apparence">
@@ -478,7 +484,7 @@
           <span class="config-accordion-arrow">▸</span>
         </div>
         <div class="config-accordion-body" id="accordion-apparence" style="display:none;">
-        <div class="config-card">
+                  <div class="config-card">
 
           <!-- Mode sombre / clair -->
           <div class="config-row">
@@ -543,6 +549,7 @@
 
         
         </div>
+        </div>
       </div>
 
       <div class="config-accordion" id="acc-connexions">
@@ -552,7 +559,7 @@
           <span class="config-accordion-arrow">▸</span>
         </div>
         <div class="config-accordion-body" id="accordion-connexions" style="">
-        <div class="config-card">
+                  <div class="config-card">
 
           <!-- Non connectée -->
           <div id="fb-unlogged">
@@ -607,10 +614,10 @@
                   <span id="fb-sync-label" style="font-size:13px;color:var(--text2);">Hors ligne</span>
                 </div>
               </div>
-            </div>
-          </div>
-
-                <div class="config-card">
+        </div>
+        </div>
+        </div>
+                          <div class="config-card">
           <!-- Token -->
           <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
             <div class="config-row-label">
@@ -637,28 +644,8 @@
             </div>
           </div>
           <div id="pk-import-log" style="display:none;margin-top:12px;padding:12px 16px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;line-height:1.8;color:var(--text2);max-height:200px;overflow-y:auto;"></div>
-                <div class="config-card">
-          <div class="config-row">
-            <div class="config-row-label">
-              <div class="config-row-name">Générer un fichier PluralKit</div>
-              <div class="config-row-desc">Télécharge un JSON à importer manuellement dans PluralKit</div>
-            </div>
-            <div class="config-row-control">
-              <button class="btn btn-primary" id="btn-export-pk">⟡ Télécharger JSON</button>
-            </div>
-          </div>
-          <div class="config-row">
-            <div class="config-row-label">
-              <div class="config-row-name">Envoyer directement à PluralKit</div>
-              <div class="config-row-desc">Crée ou met à jour les membres via l'API PluralKit (token requis). Les avatars sont inclus si une URL d'image est renseignée.</div>
-            </div>
-            <div class="config-row-control">
-              <button class="btn btn-primary" id="btn-export-pk-api">⟡ Envoyer à PK</button>
-            </div>
-          </div>
-          <div id="pk-export-info" style="display:none;margin-top:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:13px;color:var(--text2);line-height:1.6;"></div>
-          <div id="pk-push-log" style="display:none;margin-top:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);line-height:1.8;max-height:260px;overflow-y:auto;font-family:monospace;"></div>
-                <div class="config-card">
+        </div>
+                          <div class="config-card">
           <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
             <div class="config-row-label">
               <div class="config-row-name">Clé API imgbb</div>
@@ -675,6 +662,7 @@
           </div>
         
         </div>
+        </div>
       </div>
 
       <div class="config-accordion" id="acc-donnees">
@@ -684,38 +672,7 @@
           <span class="config-accordion-arrow">▸</span>
         </div>
         <div class="config-accordion-body" id="accordion-donnees" style="display:none;">
-        <div class="config-card">
-
-          <!-- Chemin mémorisé (saisie manuelle) -->
-          <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
-            <div class="config-row-label">
-              <div class="config-row-name">Chemin d'accès favori</div>
-              <div class="config-row-desc">Mémorisez le chemin de votre dossier pour vous en souvenir facilement (indication visuelle uniquement).</div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <input type="text" class="input" id="img-folder-path"
-                     placeholder="ex : Images/Système…"
-                     style="flex:1;min-width:200px;font-family:monospace;font-size:12px;" autocomplete="off" />
-              <button class="btn btn-primary btn-sm" id="btn-save-img-folder">Sauvegarder</button>
-              <button class="btn btn-ghost btn-sm" id="btn-clear-img-folder">✕</button>
-            </div>
-            <div id="img-folder-status" style="font-size:12px;color:var(--text3);"></div>
-          </div>
-
-          <!-- Import dossier entier -->
-          <div class="config-row" style="border-top:1px solid var(--border2);margin-top:12px;padding-top:16px;">
-            <div class="config-row-label">
-              <div class="config-row-name">Importer un dossier d'images</div>
-              <div class="config-row-desc">Sélectionnez un dossier pour importer toutes ses images en une fois dans la galerie.</div>
-            </div>
-            <div class="config-row-control">
-              <button class="btn btn-ghost" id="btn-import-folder">📁 Choisir un dossier</button>
-              <input type="file" id="img-folder-import-picker" accept="image/*" multiple webkitdirectory style="display:none;" />
-            </div>
-          </div>
-          <div id="img-folder-import-log" style="display:none;margin-top:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);line-height:1.8;"></div>
-
-                <div class="config-card">
+                          <div class="config-card">
           <div class="config-row">
             <div class="config-row-label">
               <div class="config-row-name">Exporter les données</div>
@@ -763,6 +720,93 @@
         
         </div>
       </div>
+                          <div class="config-card">
+          <div class="config-row">
+            <div class="config-row-label">
+              <div class="config-row-name">Générer un fichier PluralKit</div>
+              <div class="config-row-desc">Télécharge un JSON à importer manuellement dans PluralKit</div>
+            </div>
+            <div class="config-row-control">
+              <button class="btn btn-primary" id="btn-export-pk">⟡ Télécharger JSON</button>
+            </div>
+          </div>
+          <div class="config-row">
+            <div class="config-row-label">
+              <div class="config-row-name">Envoyer directement à PluralKit</div>
+              <div class="config-row-desc">Crée ou met à jour les membres via l'API PluralKit (token requis). Les avatars sont inclus si une URL d'image est renseignée.</div>
+            </div>
+            <div class="config-row-control">
+              <button class="btn btn-primary" id="btn-export-pk-api">⟡ Envoyer à PK</button>
+            </div>
+          </div>
+          <div id="pk-export-info" style="display:none;margin-top:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:13px;color:var(--text2);line-height:1.6;"></div>
+          <div id="pk-push-log" style="display:none;margin-top:12px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);line-height:1.8;max-height:260px;overflow-y:auto;font-family:monospace;"></div>
+                <div class="config-card">
+          <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
+            <div class="config-row-label">
+              <div class="config-row-name">Clé API imgbb</div>
+              <div class="config-row-desc">Permet d'héberger automatiquement vos images et d'obtenir un lien URL pour PluralKit.
+                Gratuit — <a href="https://api.imgbb.com/" target="_blank" rel="noopener" style="color:var(--accent3);">Obtenir une clé sur api.imgbb.com</a></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="password" class="input" id="imgbb-key-input" placeholder="Collez votre clé API ici…"
+                     style="flex:1;min-width:200px;font-family:monospace;font-size:13px;" autocomplete="off" />
+              <button class="btn btn-primary btn-sm" id="btn-save-imgbb-key">Sauvegarder</button>
+              <button class="btn btn-ghost btn-sm" id="btn-clear-imgbb-key">Effacer</button>
+            </div>
+            <div id="imgbb-key-status" style="font-size:12px;color:var(--text3);"></div>
+          </div>
+        
+        </div>
+      </div>
+                  <div class="config-card">
+
+          <!-- Chemin mémorisé (saisie manuelle) -->
+          <div class="config-row" style="flex-direction:column;align-items:stretch;gap:10px;">
+            <div class="config-row-label">
+              <div class="config-row-name">Chemin d'accès favori</div>
+              <div class="config-row-desc">Mémorisez le chemin de votre dossier pour vous en souvenir facilement (indication visuelle uniquement).</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="text" class="input" id="img-folder-path"
+                     placeholder="ex : Images/Système…"
+                     style="flex:1;min-width:200px;font-family:monospace;font-size:12px;" autocomplete="off" />
+              <button class="btn btn-primary btn-sm" id="btn-save-img-folder">Sauvegarder</button>
+              <button class="btn btn-ghost btn-sm" id="btn-clear-img-folder">✕</button>
+            </div>
+            <div id="img-folder-status" style="font-size:12px;color:var(--text3);"></div>
+          </div>
+
+          <!-- Import dossier entier -->
+          <div class="config-row" style="border-top:1px solid var(--border2);margin-top:12px;padding-top:16px;">
+            <div class="config-row-label">
+              <div class="config-row-name">Importer un dossier d'images</div>
+              <div class="config-row-desc">Sélectionnez un dossier pour importer toutes ses images en une fois dans la galerie.</div>
+            </div>
+            <div class="config-row-control">
+              <button class="btn btn-ghost" id="btn-import-folder">📁 Choisir un dossier</button>
+              <input type="file" id="img-folder-import-picker" accept="image/*" multiple webkitdirectory style="display:none;" />
+            </div>
+          </div>
+          <div id="img-folder-import-log" style="display:none;margin-top:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);line-height:1.8;"></div>
+
+        </div>
+                          <div class="config-card">
+          <div class="config-row" style="flex-wrap:nowrap;align-items:center;">
+            <div class="config-row-label" style="min-width:0;">
+              <div class="config-row-name">Journal des actions</div>
+              <div class="config-row-desc">Dernières modifications enregistrées automatiquement</div>
+            </div>
+            <div class="config-row-control">
+              <button class="btn btn-ghost btn-sm" id="btn-clear-history">✕ Effacer</button>
+            </div>
+          </div>
+          <div id="history-log" style="max-height:340px;overflow-y:auto;padding:4px 0;"></div>
+          <div id="history-empty" style="padding:20px;text-align:center;color:var(--text3);font-size:13px;font-style:italic;">Aucune modification enregistrée.</div>
+        
+        </div>
+        </div>
+      </div>
 
       <div class="config-accordion" id="acc-danger">
         <div class="config-accordion-header" data-accordion="danger">
@@ -771,7 +815,7 @@
           <span class="config-accordion-arrow">▸</span>
         </div>
         <div class="config-accordion-body" id="accordion-danger" style="display:none;">
-        <div class="config-card" style="border-color:rgba(232,122,122,0.2);">
+                  <div class="config-card" style="border-color:rgba(232,122,122,0.2);">
           <div class="config-row">
             <div class="config-row-label">
               <div class="config-row-name">Nettoyer les données orphelines</div>
@@ -800,6 +844,7 @@
             </div>
           </div>
         
+        </div>
         </div>
       </div>
 
@@ -1169,7 +1214,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.71';
+  const APP_VERSION = '1.72';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {

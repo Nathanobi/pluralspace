@@ -9,6 +9,85 @@ document.querySelectorAll('.config-accordion-header').forEach(header => {
   });
 });
 
+// ── RECHERCHE DANS LA CONFIG ──
+(function() {
+  // Index des paramètres recherchables : { label, keywords, accordion, elementId }
+  const CONFIG_INDEX = [
+    { label: 'Thème sombre / clair',         kw: 'thème mode sombre clair apparence',      acc: 'apparence',  id: 'btn-mode-dark' },
+    { label: 'Couleurs accent',               kw: 'couleur accent thème personnalisation',   acc: 'apparence',  id: 'theme-color-options' },
+    { label: 'Police de caractères',          kw: 'police fonte caractères texte',            acc: 'apparence',  id: null },
+    { label: 'Compte Google / Firebase',      kw: 'google firebase compte connexion sync',   acc: 'connexions', id: 'btn-fb-signin' },
+    { label: 'Synchronisation cloud',         kw: 'sync cloud envoyer recharger firebase',   acc: 'connexions', id: 'fb-sync-row' },
+    { label: 'Token PluralKit',               kw: 'token pluralkit pk connexion',             acc: 'connexions', id: 'pk-token-input' },
+    { label: 'Import depuis PluralKit',       kw: 'import pluralkit importer membres',        acc: 'connexions', id: 'btn-pk-import' },
+    { label: 'Clé API imgbb',                 kw: 'imgbb hébergement image clé api',          acc: 'connexions', id: 'imgbb-key-input' },
+    { label: 'Export PluralKit (JSON)',        kw: 'export pluralkit json télécharger',        acc: 'donnees',    id: 'btn-export-pk' },
+    { label: 'Envoyer à PluralKit (direct)',  kw: 'envoyer pluralkit direct api push',        acc: 'donnees',    id: 'btn-export-pk-api' },
+    { label: 'Exporter les données (JSON)',   kw: 'exporter données json sauvegarde',         acc: 'donnees',    id: 'btn-export-data' },
+    { label: 'Importer les données (JSON)',   kw: 'importer données json restaurer',          acc: 'donnees',    id: 'btn-import-data' },
+    { label: "Import dossier d'images",      kw: 'dossier images importer chemin',           acc: 'donnees',    id: 'btn-import-folder' },
+    { label: 'Historique des modifications',  kw: 'historique modifications journal log',     acc: 'donnees',    id: 'btn-clear-history' },
+    { label: 'Statistiques',                  kw: 'statistiques stats données résumé',        acc: 'donnees',    id: 'config-stats-display' },
+    { label: 'Nettoyer les orphelins',        kw: 'nettoyer orphelins proxys profils images', acc: 'danger',     id: 'btn-clean-orphans' },
+    { label: 'Vider le cloud',                kw: 'vider cloud firebase supprimer données',   acc: 'danger',     id: 'btn-reset-cloud' },
+    { label: 'Réinitialiser toutes les données', kw: 'supprimer tout réinitialiser données',  acc: 'danger',     id: 'btn-reset-all' },
+  ];
+
+  const input   = document.getElementById('config-search-input');
+  const results = document.getElementById('config-search-results');
+  if (!input || !results) return;
+
+  input.addEventListener('input', function() {
+    const q = this.value.trim().toLowerCase();
+    if (!q) { results.style.display = 'none'; return; }
+
+    const matches = CONFIG_INDEX.filter(item =>
+      item.label.toLowerCase().includes(q) ||
+      item.kw.toLowerCase().includes(q)
+    );
+
+    if (matches.length === 0) {
+      results.style.display = '';
+      results.innerHTML = '<div style="padding:12px 16px;font-size:13px;color:var(--text3);">Aucun résultat.</div>';
+      return;
+    }
+
+    results.style.display = '';
+    results.innerHTML = matches.map(item => `
+      <div class="config-search-result" data-acc="${item.acc}" data-id="${item.id||''}"
+           style="padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px;transition:background var(--transition);"
+           onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;background:var(--bg4);padding:2px 7px;border-radius:10px;flex-shrink:0;">${item.acc}</span>
+        <span style="font-size:13px;color:var(--text);">${esc(item.label)}</span>
+      </div>`).join('');
+
+    results.querySelectorAll('.config-search-result').forEach(el => {
+      el.addEventListener('click', () => {
+        const acc  = el.dataset.acc;
+        const elId = el.dataset.id;
+        // Ouvrir l'accordéon cible
+        const header = document.querySelector(`.config-accordion-header[data-accordion="${acc}"]`);
+        const body   = document.getElementById('accordion-' + acc);
+        if (header && body && !header.classList.contains('open')) {
+          header.classList.add('open');
+          body.style.display = '';
+        }
+        // Scroller vers l'élément
+        const target = elId ? document.getElementById(elId) : body;
+        if (target) setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+        // Fermer les résultats
+        results.style.display = 'none';
+        input.value = '';
+      });
+    });
+  });
+
+  // Fermer en cliquant ailleurs
+  document.addEventListener('click', e => {
+    if (!input.contains(e.target) && !results.contains(e.target)) results.style.display = 'none';
+  });
+})();
+
 // ── CONFIGURATION PAGE ──
 
 // ── HISTORIQUE DES MODIFICATIONS ──
