@@ -576,6 +576,41 @@ document.querySelectorAll('[data-proxy-sort]').forEach(btn => {
 });
 document.getElementById('proxy-search').addEventListener('input', e => { proxySearch=e.target.value.trim(); renderProxys(); });
 
+// ── COPIER LA LISTE DES PROXYS ──
+document.getElementById('btn-copy-proxy-list')?.addEventListener('click', () => {
+  if (!proxys.length) { toast('Aucun proxy à copier.', 'info'); return; }
+
+  // Grouper par prénom, trier alphabétiquement
+  const grouped = {};
+  proxys.forEach(px => {
+    const p = prenoms.find(x => x.id === px.prenomId);
+    if (!p) return;
+    if (!grouped[p.name]) grouped[p.name] = [];
+    grouped[p.name].push((px.prefix || '') + 'texte' + (px.suffix || ''));
+  });
+
+  const lines = Object.keys(grouped)
+    .sort((a, b) => a.localeCompare(b, 'fr'))
+    .map(name => {
+      const pxList = grouped[name].map(px => '`' + px + '`').join(', ');
+      return name + ' : ' + pxList;
+    });
+
+  navigator.clipboard.writeText(lines.join('\n'))
+    .then(() => toast('Liste de ' + lines.length + ' prénom(s) copiée ✓', 'success'))
+    .catch(() => {
+      // Fallback si clipboard API bloquée
+      const ta = document.createElement('textarea');
+      ta.value = lines.join('\n');
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('Liste de ' + lines.length + ' prénom(s) copiée ✓', 'success');
+    });
+});
+
 // ── RÉSOLUTION DE CONFLITS ──
 function openConflictResolver(conflictKey) {
   const [prefix, suffix] = conflictKey.split('|');
