@@ -381,6 +381,121 @@ function loadImageFile(file) {
   reader.readAsDataURL(file);
 }
 
+// ── IMPORT PINTEREST ──
+
+function extractPinterestOgImage(html) {
+  // Plusieurs patterns car Pinterest change son HTML selon la plateforme
+  const patterns = [
+    /property="og:image"\s+content="([^"]+)"/i,
+    /content="([^"]+)"\s+property="og:image"/i,
+    /"og:image","content":"([^"]+)"/i,
+    /(https:\/\/i\.pinimg\.com\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp))/i,
+  ];
+  for (const re of patterns) {
+    const m = html.match(re);
+    if (m && (m[1] || m[0])) return m[1] || m[0];
+  }
+  return null;
+}
+
+function setPinterestStatus(msg, type) {
+  const el = document.getElementById('img-pinterest-status');
+  if (!el) return;
+  el.style.display = msg ? '' : 'none';
+  el.textContent   = msg;
+  el.style.color   = type === 'ok'    ? 'var(--success)'
+                   : type === 'error' ? 'var(--danger)'
+                   : 'var(--text3)';
+}
+
+function loadImageFromDataUrl(dataUrl) {
+  document.getElementById('img-preview').src = dataUrl;
+  document.getElementById('img-drop-content').style.display = 'none';
+  document.getElementById('img-preview-wrap').style.display = '';
+  currentOriginalDataUrl = dataUrl;
+  currentIsCropped = false;
+  currentHostedUrl = null;
+  updateCropStatusUI(false, null);
+  showHostedZone(editingImageId ? images.find(x => x.id === editingImageId) : null);
+}
+
+document.getElementById('btn-img-pinterest')?.addEventListener('click', async () => {
+  const input = document.getElementById('img-pinterest-input');
+  const url   = (input?.value || '').trim();
+  const btn   = document.getElementById('btn-img-pinterest');
+  if (!url) { setPinterestStatus('Collez un lien Pinterest.', 'warn'); return; }
+
+  btn.disabled    = true;
+  btn.textContent = '⏳ Chargement…';
+  setPinterestStatus('Récupération en cours…', 'info');
+
+  try {
+    let imageUrl = null;
+
+    // ── CAS 1 : URL directe d'image pinimg.com ──
+    if (url.includes('pinimg.com') || /\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(url)) {
+      imageUrl = url;
+      setPinterestStatus("URL image directe détectée…", "info");
+    }
+
+    // ── CAS 2 : URL de pin (pinterest.com/pin/... ou pin.it/...) ──
+    if (!imageUrl) {
+      setPinterestStatus("Récupération de la page du pin…", "info");
+      try {
+        const apiUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+        const resp   = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const json   = await resp.json();
+        const html   = json.contents || '';
+
+        if (html.length < 200) {
+          // Pinterest a renvoyé une page vide — bot protection active
+          throw new Error("Pinterest a bloqué la requête (page vide). Essayez de copier l'URL directe de l'image (i.pinimg.com/…) depuis le navigateur.");
+        }
+
+        imageUrl = extractPinterestOgImage(html);
+        if (!imageUrl) {
+          throw new Error("Image non trouvée dans la page. Essayez de copier l'URL directe de l'image depuis Pinterest.");
+        }
+      } catch(e) {
+        if (e.message.includes('bloqué') || e.message.includes('non trouvée') || e.message.includes('URL directe')) {
+          throw e;
+        }
+        throw new Error('Impossible de récupérer la page : ' + e.message);
+      }
+    }
+
+    // ── Charger l'image via weserv (CORS-safe sur tous supports) ──
+    setPinterestStatus("Chargement de l'image…", "info");
+    const weservUrl = 'https://images.weserv.nl/?url=' + encodeURIComponent(imageUrl) + '&output=jpg';
+    const imgResp   = await fetch(weservUrl, { signal: AbortSignal.timeout(20000) });
+    if (!imgResp.ok) throw new Error('Impossible de charger l\u2019image (weserv HTTP ' + imgResp.status + ').');
+
+    const blob   = await imgResp.blob();
+    const dataUrl = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload  = () => res(reader.result);
+      reader.onerror = rej;
+      reader.readAsDataURL(blob);
+    });
+
+    loadImageFromDataUrl(dataUrl);
+    setPinterestStatus('✓ Image importée depuis Pinterest !', 'ok');
+    input.value = '';
+
+  } catch(e) {
+    setPinterestStatus('✕ ' + e.message, 'error');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '⬇ Importer';
+  }
+});
+
+// Permettre aussi d'importer en appuyant sur Entrée dans le champ
+document.getElementById('img-pinterest-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-img-pinterest')?.click();
+});
+
 async function saveImage() {
   const preview   = document.getElementById('img-preview');
   const dataUrl   = preview.dataset.showingOriginal==='true' ? (preview.dataset.croppedSrc||preview.src) : preview.src;

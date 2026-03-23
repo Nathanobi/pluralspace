@@ -463,76 +463,131 @@ function initFirebaseAuth(logEl, isIOS, isStandalone) {
 }
 
 // ── PINTEREST CORS ──
+// ── Extraire og:image depuis HTML ──
+function extractOgImage(html) {
+  const patterns = [
+    /property="og:image"\s+content="([^"]+)"/i,
+    /content="([^"]+)"\s+property="og:image"/i,
+    /"og:image","content":"([^"]+)"/i,
+    /(https:\/\/i\.pinimg\.com\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp))/i,
+  ];
+  for (const re of patterns) {
+    const m = html.match(re);
+    if (m) return m[1] || m[0];
+  }
+  return null;
+}
+
+// ── Charger une image via weserv → dataUrl ──
+async function loadImageViaWeserv(imgUrl, logEl) {
+  const weservUrl = 'https://images.weserv.nl/?url=' + encodeURIComponent(imgUrl) + '&output=jpg';
+  log('  weserv : ' + weservUrl.slice(0,80) + '…', 'info', logEl);
+  const resp = await fetch(weservUrl, { signal: AbortSignal.timeout(15000) });
+  if (!resp.ok) throw new Error('weserv HTTP ' + resp.status);
+  const blob = await resp.blob();
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+
 async function testPinterest() {
   const logEl = 'pinterest-log';
   const url   = document.getElementById('pinterest-url').value.trim();
-  if (!url) { log('⚠ Entrez une URL Pinterest d\'abord', 'warn', logEl); return; }
+  if (!url) { log('Entrez une URL Pinterest', 'warn', logEl); return; }
 
   logSection('Vérif Pinterest — ' + url, logEl);
   setDot('pinterest', 'running');
 
-  const proxies = [
-    { name: 'Direct',           fn: u => u },
-    { name: 'corsproxy.io',     fn: u => 'https://corsproxy.io/?' + encodeURIComponent(u) },
-    { name: 'allorigins.win',   fn: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
-    { name: 'images.weserv.nl', fn: u => 'https://images.weserv.nl/?url=' + encodeURIComponent(u) },
-  ];
-
-  let anyOk = false;
-  for (const proxy of proxies) {
-    const proxyUrl = proxy.fn(url);
-    log(`Vérif via ${proxy.name}…`, 'info', logEl);
-    const t0 = Date.now();
+  // Étape 1 : URL directe pinimg.com
+  if (url.includes('pinimg.com') || /\.(jpg|jpeg|png|webp)$/i.test(url)) {
+    log('URL image directe — chargement via weserv…', 'info', logEl);
     try {
-      const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
-      const ms   = Date.now() - t0;
-      const ct   = resp.headers.get('content-type') || '?';
-      log(`  → HTTP ${resp.status} (${ms}ms) type=${ct}`, resp.ok ? 'ok' : 'warn', logEl);
-      if (resp.ok && ct.startsWith('image/')) {
-        log(`  → Image reçue via ${proxy.name} ✓`, 'ok', logEl);
-        anyOk = true;
-      } else if (resp.ok) {
-        const text = await resp.text();
-        log(`  → Contenu (${text.length} chars) : ${text.slice(0, 120)}`, 'data', logEl);
-      }
-    } catch(e) {
-      log(`  → ERREUR : ${e.message}`, 'error', logEl);
-    }
+      const dataUrl = await loadImageViaWeserv(url, logEl);
+      log('Image chargée ! (' + Math.round(dataUrl.length/1024) + ' KB)', 'ok', logEl);
+      showPinterestPreview(dataUrl, logEl);
+      setDot('pinterest', 'ok'); return;
+    } catch(e) { log('Erreur : ' + e.message, 'error', logEl); }
   }
-  setDot('pinterest', anyOk ? 'ok' : 'error');
+
+  // Étape 2 : Page pin via allorigins /get (mode JSON - différent de /raw)
+  log('Récupération page via allorigins /get…', 'info', logEl);
+  let ogImageUrl = null;
+  try {
+    const apiUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+    const html = json.contents || '';
+    const httpCode = json.status && json.status.http_code ? json.status.http_code : '?';
+    log('Réponse : ' + html.length + ' chars, HTTP ' + httpCode, html.length > 200 ? 'ok' : 'warn', logEl);
+    if (html.length > 200) {
+      ogImageUrl = extractOgImage(html);
+      log(ogImageUrl ? 'og:image : ' + ogImageUrl.slice(0,80) : 'og:image non trouvé', ogImageUrl ? 'ok' : 'warn', logEl);
+      if (!ogImageUrl) log('Extrait : ' + html.slice(0,400), 'data', logEl);
+    } else {
+      log('HTML trop court — Pinterest a peut-être bloqué allorigins', 'warn', logEl);
+    }
+  } catch(e) { log('allorigins /get erreur : ' + e.message, 'error', logEl); }
+
+  // Étape 3 : Charger l'image og via weserv
+  if (ogImageUrl) {
+    log('Chargement image via weserv…', 'info', logEl);
+    try {
+      const dataUrl = await loadImageViaWeserv(ogImageUrl, logEl);
+      log('Image chargée ! (' + Math.round(dataUrl.length/1024) + ' KB)', 'ok', logEl);
+      showPinterestPreview(dataUrl, logEl);
+      setDot('pinterest', 'ok'); return;
+    } catch(e) { log('weserv erreur : ' + e.message, 'error', logEl); }
+  }
+
+  log('Aucune méthode fonctionnelle pour cette URL.', 'error', logEl);
+  setDot('pinterest', 'error');
+}
+
+function showPinterestPreview(dataUrl, logEl) {
+  const existing = document.getElementById('pinterest-preview');
+  if (existing) existing.remove();
+  const el = document.getElementById('pinterest-log');
+  const div = document.createElement('div');
+  div.id = 'pinterest-preview';
+  div.style.cssText = 'margin-top:12px;text-align:center;';
+  div.innerHTML = '<p style="font-size:11px;color:var(--text3);margin-bottom:6px;">Aperçu :</p>'
+    + '<img src="' + dataUrl + '" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border2);" />';
+  el.after(div);
 }
 
 async function testOEmbed() {
   const logEl = 'pinterest-log';
   const url   = document.getElementById('pinterest-url').value.trim();
-  if (!url) { log('⚠ Entrez une URL Pinterest', 'warn', logEl); return; }
+  if (!url) { log('Entrez une URL Pinterest', 'warn', logEl); return; }
 
-  logSection('Vérif oEmbed — ' + url, logEl);
+  logSection('Vérif oEmbed', logEl);
   const oembedUrl = 'https://www.pinterest.com/oembed.json?url=' + encodeURIComponent(url);
   const proxies = [
-    { name: 'Direct',         fn: u => u },
-    { name: 'corsproxy.io',   fn: u => 'https://corsproxy.io/?' + encodeURIComponent(u) },
-    { name: 'allorigins.win', fn: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+    { name: 'Direct',              fn: u => u },
+    { name: 'allorigins /get',     fn: u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u) },
+    { name: 'allorigins /raw',     fn: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+    { name: 'corsproxy.io',        fn: u => 'https://corsproxy.io/?' + encodeURIComponent(u) },
   ];
   for (const proxy of proxies) {
-    const proxyUrl = proxy.fn(oembedUrl);
-    log(`oEmbed via ${proxy.name}…`, 'info', logEl);
+    log('oEmbed via ' + proxy.name + '…', 'info', logEl);
     try {
-      const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+      const resp = await fetch(proxy.fn(oembedUrl), { signal: AbortSignal.timeout(8000) });
       const text = await resp.text();
-      log(`  HTTP ${resp.status} : ${text.slice(0,200)}`, resp.ok ? 'ok' : 'warn', logEl);
-      if (resp.ok) {
+      log('  HTTP ' + resp.status + ' (' + text.length + ' chars) : ' + text.slice(0,150), text.length > 10 ? 'ok' : 'warn', logEl);
+      if (text.length > 10) {
         try {
-          const data = JSON.parse(text);
-          log(`  thumbnail_url = ${data.thumbnail_url || '—'}`, 'data', logEl);
+          const raw  = proxy.name.includes('/get') ? JSON.parse(text).contents : text;
+          const data = JSON.parse(raw);
+          if (data.thumbnail_url) log('  thumbnail_url = ' + data.thumbnail_url, 'data', logEl);
         } catch(e) {}
       }
-    } catch(e) {
-      log(`  ERREUR : ${e.message}`, 'error', logEl);
-    }
+    } catch(e) { log('  ERREUR : ' + e.message, 'error', logEl); }
   }
 }
-
 // ── IMGBB ──
 async function testImgbb() {
   const logEl  = 'imgbb-log';

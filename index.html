@@ -50,7 +50,7 @@
     <section class="page active" id="page-accueil">
       <div class="page-header">
         <div><div class="page-title">Bienvenue</div><div class="page-subtitle">Vue d'ensemble de votre système</div></div>
-        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.76</button>
+        <button id="btn-version-check" title="Vérifier les mises à jour" style="background:transparent;border:1px solid var(--border2);color:var(--text3);font-size:11px;padding:3px 8px;border-radius:20px;cursor:pointer;font-family:var(--font-sans);transition:border-color 0.2s,color 0.2s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">v1.77</button>
       </div>
 
       <!-- Système PluralKit -->
@@ -890,6 +890,20 @@
       </div>
     </div>
 
+    <!-- Lien Pinterest -->
+    <div class="form-group" id="img-pinterest-group">
+      <label class="form-label" style="display:flex;align-items:center;gap:6px;">
+        <span style="color:#e60023;">📌</span> Importer depuis Pinterest
+      </label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" class="input" id="img-pinterest-input"
+               placeholder="Coller un lien Pinterest (pin.it, pinterest.com/pin/…)"
+               autocomplete="off" style="flex:1;" />
+        <button class="btn btn-ghost btn-sm" id="btn-img-pinterest" style="white-space:nowrap;flex-shrink:0;">⬇ Importer</button>
+      </div>
+      <div id="img-pinterest-status" style="font-size:12px;margin-top:6px;display:none;"></div>
+    </div>
+
     <div class="form-group">
       <label class="form-label">Lier à un prénom</label>
       <div style="position:relative;">
@@ -1195,7 +1209,7 @@
 
   <script>
   // ── VÉRIFICATION DE MISE À JOUR ──
-  const APP_VERSION = '1.76';
+  const APP_VERSION = '1.77';
   let pendingUpdateReg = null; // mémorise le reg même si reg.waiting disparaît
 
   function showUpdateAvailable(reg) {
