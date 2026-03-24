@@ -162,6 +162,7 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <button class="btn btn-primary btn-sm" id="btn-test-pinterest">▶ Vérifier les proxies</button>
         <button class="btn btn-sm" id="btn-test-oembed">▶ Vérifier oEmbed</button>
+        <button class="btn btn-sm" id="btn-test-worker" style="background:var(--bg3);border-color:var(--accent2);color:var(--accent2);">▶ Vérifier notre Worker</button>
       </div>
       <div id="pinterest-log" class="log-area" style="display:none;"></div>
     </div>
@@ -724,9 +725,71 @@ document.getElementById('btn-run-all').addEventListener('click', async () => {
 });
 document.getElementById('btn-copy-report').addEventListener('click', copyReport);
 document.getElementById('btn-clear-logs').addEventListener('click', clearAllLogs);
+async function testWorker() {
+  const logEl  = 'pinterest-log';
+  const url    = document.getElementById('pinterest-url').value.trim();
+  const worker = 'https://pluralspace-pinterest.nathanbey9.workers.dev';
+
+  if (!url) { log('Entrez une URL Pinterest', 'warn', logEl); return; }
+
+  logSection('Vérif Worker Cloudflare — ' + url, logEl);
+  setDot('pinterest', 'running');
+
+  // ── Test 1 : Worker accessible ──
+  log('Vérification que le Worker répond…', 'info', logEl);
+  try {
+    const pingResp = await fetch(worker + '/?url=https://i.pinimg.com/test.jpg', { signal: AbortSignal.timeout(8000) });
+    log('Worker accessible : HTTP ' + pingResp.status, pingResp.status < 500 ? 'ok' : 'error', logEl);
+  } catch(e) {
+    log('Worker inaccessible : ' + e.message, 'error', logEl);
+    setDot('pinterest', 'error');
+    return;
+  }
+
+  // ── Test 2 : URL complète du pin ──
+  log("Envoi de l'URL au Worker…", 'info', logEl);
+  const workerUrl = worker + '/?url=' + encodeURIComponent(url);
+  log('→ ' + workerUrl, 'data', logEl);
+  const t0 = Date.now();
+  try {
+    const resp = await fetch(workerUrl, { signal: AbortSignal.timeout(20000) });
+    const ms   = Date.now() - t0;
+    const ct   = resp.headers.get('content-type') || '?';
+    log('Réponse : HTTP ' + resp.status + ' (' + ms + 'ms) type=' + ct, resp.ok ? 'ok' : 'warn', logEl);
+
+    if (resp.ok && ct.startsWith('image/')) {
+      // Succès — convertir en dataUrl et afficher
+      const blob   = await resp.blob();
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload  = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(blob);
+      });
+      log('Image reçue ! (' + Math.round(dataUrl.length / 1024) + ' KB)', 'ok', logEl);
+      showPinterestPreview(dataUrl, logEl);
+      setDot('pinterest', 'ok');
+    } else {
+      // Erreur — lire la réponse JSON pour le détail
+      const text = await resp.text();
+      log('Réponse non-image : ' + text.slice(0, 400), 'warn', logEl);
+      try {
+        const json = JSON.parse(text);
+        if (json.html_excerpt) log('Extrait HTML reçu (' + json.html_length + ' chars) : ' + json.html_excerpt, 'data', logEl);
+        if (json.error)        log('Erreur Worker : ' + json.error, 'error', logEl);
+      } catch(e) {}
+      setDot('pinterest', 'error');
+    }
+  } catch(e) {
+    log('Erreur fetch Worker : ' + e.message, 'error', logEl);
+    setDot('pinterest', 'error');
+  }
+}
+
 document.getElementById('btn-test-net').addEventListener('click', testConnectivity);
 document.getElementById('btn-test-auth').addEventListener('click', testGoogleAuth);
 document.getElementById('btn-test-pinterest').addEventListener('click', testPinterest);
+document.getElementById('btn-test-worker').addEventListener('click', testWorker);
 document.getElementById('btn-test-oembed').addEventListener('click', testOEmbed);
 document.getElementById('btn-test-imgbb').addEventListener('click', testImgbb);
 document.getElementById('btn-test-pk').addEventListener('click', testPK);
