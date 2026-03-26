@@ -203,16 +203,17 @@ function openImageModal(img) {
     document.getElementById('img-preview-wrap').style.display='';
     updateCropStatusUI(img.isCropped, img.originalDataUrl);
     showHostedZone(img);
-  } else if (img && img.hostedUrl) {
-    // Pas de dataUrl local mais hostedUrl disponible → télécharger et convertir en base64
+  } else if (img && resolveImageSrc(img)) {
+    // Pas de dataUrl local → utiliser la meilleure URL (recadrée en priorité)
+    const displaySrc = resolveImageSrc(img);
     document.getElementById('img-drop-content').style.display='none';
     document.getElementById('img-preview-wrap').style.display='';
-    document.getElementById('img-preview').src = img.hostedUrl;
+    document.getElementById('img-preview').src = displaySrc;
     updateCropStatusUI(img.isCropped, null);
     showHostedZone(img);
     // Télécharger en arrière-plan pour avoir un vrai dataUrl local
     toast('Chargement de l\'image…', 'info');
-    fetch(img.hostedUrl)
+    fetch(resolveImageSrc(img) || img.hostedUrl)
       .then(r => r.blob())
       .then(blob => new Promise((res, rej) => {
         const reader = new FileReader();
@@ -240,7 +241,7 @@ function showHostedZone(img) {
   const wrap = document.getElementById('img-hosted-wrap');
   wrap.style.display = '';
   if (img && img.hostedUrl) {
-    document.getElementById('img-hosted-url').textContent = img.hostedUrl;
+    document.getElementById('img-hosted-url').textContent = (img.isCropped && img.croppedHostedUrl) ? img.croppedHostedUrl : (img.hostedUrl || '');
     document.getElementById('btn-copy-hosted-url').style.display = '';
   } else {
     document.getElementById('img-hosted-url').innerHTML = '<span style="color:var(--text3);font-style:italic;">Non hébergée — cliquez pour générer un lien</span>';

@@ -448,14 +448,18 @@ async function fbPushAll() {
 
     // ── Étape 1 : uploader vers Firebase Storage les images sans hostedUrl ──
     const allImages0 = await dbGetAll('images');
-    const toUpload   = allImages0.filter(img => img.dataUrl && !img.hostedUrl);
+    // Upload images sans hostedUrl + images recadrées sans croppedHostedUrl
+    const toUploadBase    = allImages0.filter(img => img.dataUrl && !img.hostedUrl);
+    const toUploadCropped = allImages0.filter(img => img.dataUrl && img.isCropped && !img.croppedHostedUrl && img.hostedUrl);
+    const toUpload        = [...toUploadBase, ...toUploadCropped];
     if (toUpload.length > 0) {
       toast('Upload de ' + toUpload.length + ' image(s)…', 'info');
       let uploaded = 0;
       for (const img of toUpload) {
         const url = await fbUploadImage(img);
         if (url) {
-          img.hostedUrl = url;
+          if (!img.hostedUrl) img.hostedUrl = url;
+          if (img.isCropped)  img.croppedHostedUrl = url;
           await new Promise((res,rej) => {
             const r = db.transaction('images','readwrite').objectStore('images').put(img);
             r.onsuccess = () => res(); r.onerror = rej;
