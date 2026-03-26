@@ -382,6 +382,27 @@ function loadImageFile(file) {
   reader.readAsDataURL(file);
 }
 
+// ── Upload image recadrée : imgbb en priorité, Firebase Storage en fallback ──
+async function uploadCroppedImage(imgId, dataUrl) {
+  if (!dataUrl || !dataUrl.startsWith('data:image')) return null;
+  // Priorité 1 : imgbb
+  if (getImgbbKey()) {
+    try {
+      const url = await uploadToImgbb(dataUrl);
+      if (url) return url;
+    } catch(e) {}
+  }
+  // Priorité 2 : Firebase Storage (si connecté)
+  if (typeof fbUploadImage === 'function' && typeof fbUser !== 'undefined' && fbUser) {
+    try {
+      const fakeImg = { id: imgId, dataUrl };
+      const url = await fbUploadImage(fakeImg);
+      if (url) return url;
+    } catch(e) {}
+  }
+  return null;
+}
+
 // ── IMPORT PINTEREST ──
 
 function extractPinterestOgImage(html) {
@@ -522,9 +543,9 @@ async function saveImage() {
     }
     img.prenomId=selectedPrenomForImage?selectedPrenomForImage.id:null;
     img.tags=selectedTagsForImage.slice();
-    // Si recadrée et pas encore de croppedHostedUrl → uploader le dataUrl recadré
-    if (img.isCropped && dataUrl && dataUrl.startsWith('data:image') && !img.croppedHostedUrl && getImgbbKey()) {
-      try { img.croppedHostedUrl = await uploadToImgbb(dataUrl); } catch(e) {}
+    // Si recadrée et pas encore de croppedHostedUrl → uploader via imgbb ou Firebase Storage
+    if (img.isCropped && dataUrl && dataUrl.startsWith('data:image') && !img.croppedHostedUrl) {
+      img.croppedHostedUrl = await uploadCroppedImage(img.id, dataUrl);
     }
     await dbPut('images',img);
     // Synchroniser les tags de l'image vers le prénom associé
@@ -541,16 +562,18 @@ async function saveImage() {
     toast('Image modifiée.','success'); logHistory('Image modifiée', 'image');
   } else {
     const img={ id:uid(), dataUrl, isCropped, originalDataUrl:currentOriginalDataUrl||dataUrl, prenomId:selectedPrenomForImage?selectedPrenomForImage.id:null, tags:selectedTagsForImage.slice(), createdAt:Date.now(), hostedUrl: currentHostedUrl };
-    // Auto-upload imgbb si clé disponible ET pas déjà hébergée manuellement
-    if (!img.hostedUrl && getImgbbKey()) {
-      try {
-        img.hostedUrl = await uploadToImgbb(dataUrl);
-        // Si recadrée : stocker aussi l'URL recadrée séparément
-        if (isCropped) img.croppedHostedUrl = img.hostedUrl;
-        toast('Image ajoutée et hébergée ✓','success');
-      } catch(e) {
-        toast('Image ajoutée (hébergement échoué — sync limitée)','info');
+    // Auto-upload : imgbb si clé dispo, sinon Firebase Storage
+    if (!img.hostedUrl) {
+      const uploadedUrl = await uploadCroppedImage(img.id, dataUrl);
+      if (uploadedUrl) {
+        img.hostedUrl = uploadedUrl;
+        if (isCropped) img.croppedHostedUrl = uploadedUrl;
+        toast('Image ajoutée et hébergée ✓', 'success');
+      } else {
+        toast('Image ajoutée (hébergement indisponible — sync limitée)', 'info');
       }
+    } else if (isCropped && !img.croppedHostedUrl) {
+      img.croppedHostedUrl = await uploadCroppedImage(img.id, dataUrl);
     }
     await dbPut('images',img); images.push(img);
     if (selectedPrenomForImage) {

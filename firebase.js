@@ -319,7 +319,9 @@ async function fbUploadImage(img) {
     const base64 = img.dataUrl.split(',')[1];
     const mime   = img.dataUrl.split(';')[0].split(':')[1] || 'image/png';
     const ext    = mime.split('/')[1] || 'png';
-    const path   = 'users/' + fbUser.uid + '/images/' + img.id + '.' + ext;
+    // Suffixe _crop pour distinguer l'image recadrée de l'originale
+    const suffix = img.isCropped ? '_crop' : '';
+    const path   = 'users/' + fbUser.uid + '/images/' + img.id + suffix + '.' + ext;
     const ref    = fbStorage.ref(path);
     await ref.putString(base64, 'base64', { contentType: mime });
     return await ref.getDownloadURL();
