@@ -1,3 +1,12 @@
+// ── Résoudre la meilleure URL d'affichage pour une image ──
+// Priorité : dataUrl (local) > croppedHostedUrl (si recadrée) > hostedUrl
+function resolveImageSrc(img) {
+  if (!img) return null;
+  if (img.dataUrl && img.dataUrl.startsWith('data:image')) return img.dataUrl;
+  if (img.isCropped && img.croppedHostedUrl) return img.croppedHostedUrl;
+  return img.hostedUrl || null;
+}
+
 // ── IMAGES ──
 let imgSort = 'chrono', imgSearch = '', imgTagFilterMap = new Map(), imgUnlinkedOnly = false, imgHostedFilter = 0; // 0=tous, 1=hébergée, -1=non hébergée
 let editingImageId = null, selectedPrenomForImage = null, selectedTagsForImage = [], currentIsCropped = false, currentHostedUrl = null;
@@ -571,6 +580,7 @@ async function saveImage() {
     } else if (isCropped && !img.croppedHostedUrl) {
       img.croppedHostedUrl = await uploadCroppedImage(img.id, dataUrl);
     }
+    if (isCropped) updateCropStatusUI(true, currentOriginalDataUrl || null, !!(img.croppedHostedUrl));
     await dbPut('images',img); images.push(img);
     if (selectedPrenomForImage) {
       const p = prenoms.find(x=>x.id===selectedPrenomForImage.id) || selectedPrenomForImage;
@@ -809,7 +819,7 @@ document.getElementById('btn-img-crop').addEventListener('click', () => {
     document.getElementById('img-drop-content').style.display='none';
     document.getElementById('img-preview-wrap').style.display='';
     currentIsCropped = true;
-    updateCropStatusUI(true, currentOriginalDataUrl);
+    updateCropStatusUI(true, currentOriginalDataUrl, false);
     toast('Image recadrée !','success'); logHistory('Image recadrée', 'image');
   });
 });
