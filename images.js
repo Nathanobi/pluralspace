@@ -262,9 +262,14 @@ function showHostedZone(img) {
   }
 }
 
-function updateCropStatusUI(isCropped, originalDataUrl) {
+function updateCropStatusUI(isCropped, originalDataUrl, forcedHosted) {
   const el = document.getElementById('img-crop-status');
   if (!isCropped) { el.innerHTML='<span style="color:var(--text3);">◌ Image non recadrée</span>'; return; }
+  // isCroppedHosted : true=hébergée, false=non hébergée, undefined=vérifier en DB
+  const editingImg = editingImageId ? images.find(x => x.id === editingImageId) : null;
+  const isCroppedHosted = forcedHosted === true ? true
+    : forcedHosted === false ? false
+    : !!(editingImg && editingImg.croppedHostedUrl);
   el.innerHTML = '<span style="color:var(--success);">✂ Image recadrée</span>'
     + (!isCroppedHosted ? ' · <span style="color:var(--warn);font-size:11px;">⚠ Non hébergée</span>' : '')
     + (originalDataUrl ? ' · <button class="btn btn-ghost btn-sm" id="btn-show-original" style="padding:2px 8px;font-size:11px;">Voir originale</button>' : '');
