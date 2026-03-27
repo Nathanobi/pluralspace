@@ -382,25 +382,16 @@ function loadImageFile(file) {
   reader.readAsDataURL(file);
 }
 
-// ── Upload image recadrée : imgbb en priorité, Firebase Storage en fallback ──
+// ── Upload image recadrée via imgbb ──
 async function uploadCroppedImage(imgId, dataUrl) {
   if (!dataUrl || !dataUrl.startsWith('data:image')) return null;
-  // Priorité 1 : imgbb
-  if (getImgbbKey()) {
-    try {
-      const url = await uploadToImgbb(dataUrl);
-      if (url) return url;
-    } catch(e) {}
+  if (!getImgbbKey()) return null;
+  try {
+    const url = await uploadToImgbb(dataUrl);
+    return url || null;
+  } catch(e) {
+    return null;
   }
-  // Priorité 2 : Firebase Storage (si connecté)
-  if (typeof fbUploadImage === 'function' && typeof fbUser !== 'undefined' && fbUser) {
-    try {
-      const fakeImg = { id: imgId, dataUrl };
-      const url = await fbUploadImage(fakeImg);
-      if (url) return url;
-    } catch(e) {}
-  }
-  return null;
 }
 
 // ── IMPORT PINTEREST ──

@@ -326,7 +326,10 @@ async function fbUploadImage(img) {
     await ref.putString(base64, 'base64', { contentType: mime });
     return await ref.getDownloadURL();
   } catch(e) {
-    console.warn('[Firebase Storage] Upload échoué :', e.message);
+    // 503 = Firebase Storage indisponible ou non configuré — silence
+    if (!e.message?.includes('503') && !e.message?.includes('CORS')) {
+      console.warn('[Firebase Storage] Upload échoué :', e.message);
+    }
     return null;
   }
 }
@@ -450,18 +453,16 @@ async function fbPushAll() {
 
     // ── Étape 1 : uploader vers Firebase Storage les images sans hostedUrl ──
     const allImages0 = await dbGetAll('images');
-    // Upload images sans hostedUrl + images recadrées sans croppedHostedUrl
-    const toUploadBase    = allImages0.filter(img => img.dataUrl && !img.hostedUrl);
-    const toUploadCropped = allImages0.filter(img => img.dataUrl && img.isCropped && !img.croppedHostedUrl && img.hostedUrl);
-    const toUpload        = [...toUploadBase, ...toUploadCropped];
+    // Upload images sans hostedUrl vers Firebase Storage
+    // Note : les images recadrées sont uploadées via uploadCroppedImage() dans saveImage
+    const toUpload = allImages0.filter(img => img.dataUrl && !img.hostedUrl);
     if (toUpload.length > 0) {
       toast('Upload de ' + toUpload.length + ' image(s)…', 'info');
       let uploaded = 0;
       for (const img of toUpload) {
         const url = await fbUploadImage(img);
         if (url) {
-          if (!img.hostedUrl) img.hostedUrl = url;
-          if (img.isCropped)  img.croppedHostedUrl = url;
+          img.hostedUrl = url;
           await new Promise((res,rej) => {
             const r = db.transaction('images','readwrite').objectStore('images').put(img);
             r.onsuccess = () => res(); r.onerror = rej;
@@ -470,7 +471,7 @@ async function fbPushAll() {
         }
         await new Promise(r => setTimeout(r, 100));
       }
-      console.log('[Firebase Storage] ' + uploaded + '/' + toUpload.length + ' uploadées');
+      if (uploaded > 0) console.log('[Firebase Storage] ' + uploaded + '/' + toUpload.length + ' uploadées');
     }
 
     // ── Étape 2 : push Firestore — uniquement les docs modifiés depuis lastSync ──
