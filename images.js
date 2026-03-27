@@ -234,7 +234,11 @@ function openImageModal(img) {
   }
   if (img && img.prenomId) { const p=prenoms.find(x=>x.id===img.prenomId); if(p) selectPrenomForImage(p); }
   renderImgTagChips();
-  document.getElementById('modal-image').classList.add('open');
+  const modalImageEl = document.getElementById('modal-image');
+  modalImageEl.classList.add('open');
+  // Bloquer les pointer-events 300ms pour éviter ghost click mobile
+  modalImageEl.style.pointerEvents = 'none';
+  setTimeout(() => { modalImageEl.style.pointerEvents = ''; }, 350);
 }
 
 function showHostedZone(img) {
@@ -253,6 +257,7 @@ function updateCropStatusUI(isCropped, originalDataUrl) {
   const el = document.getElementById('img-crop-status');
   if (!isCropped) { el.innerHTML='<span style="color:var(--text3);">◌ Image non recadrée</span>'; return; }
   el.innerHTML = '<span style="color:var(--success);">✂ Image recadrée</span>'
+    + (!isCroppedHosted ? ' · <span style="color:var(--warn);font-size:11px;">⚠ Non hébergée</span>' : '')
     + (originalDataUrl ? ' · <button class="btn btn-ghost btn-sm" id="btn-show-original" style="padding:2px 8px;font-size:11px;">Voir originale</button>' : '');
   const btn = el.querySelector('#btn-show-original');
   if (btn) {
@@ -628,7 +633,8 @@ function openImageDetail(img) {
   };
   document.getElementById('modal-image-detail-edit').onclick = () => {
     document.getElementById('modal-image-detail').classList.remove('open');
-    openImageModal(img);
+    // Délai pour éviter le ghost click mobile (300ms touch delay)
+    setTimeout(() => openImageModal(img), 50);
   };
   document.getElementById('modal-image-detail-download').onclick = () => {
     if (!img.dataUrl) { toast('Aucune image locale à télécharger.', 'error'); return; }
