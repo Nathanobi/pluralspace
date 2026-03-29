@@ -9,7 +9,7 @@ function resolveImageSrc(img) {
 
 // ── IMAGES ──
 let imgSort = 'chrono', imgSearch = '', imgTagFilterMap = new Map(), imgUnlinkedOnly = false, imgHostedFilter = 0; // 0=tous, 1=hébergée, -1=non hébergée
-let editingImageId = null, selectedPrenomForImage = null, selectedTagsForImage = [], currentIsCropped = false, currentHostedUrl = null;
+let editingImageId = null, selectedPrenomForImage = null, selectedTagsForImage = [], currentIsCropped = false, currentHostedUrl = null, currentCroppedHostedUrl = null;
 let currentOriginalDataUrl = null;
 
 function renderImgTagFilters() {
@@ -188,7 +188,8 @@ function openImageModal(img) {
   selectedTagsForImage   = img ? (img.tags||[]).slice() : [];
   currentOriginalDataUrl = img ? (img.originalDataUrl||null) : null;
   currentIsCropped       = img ? (img.isCropped || false) : false;
-  currentHostedUrl       = img ? (img.hostedUrl || null) : null;
+  currentHostedUrl        = img ? (img.hostedUrl || null) : null;
+  currentCroppedHostedUrl = img ? (img.croppedHostedUrl || null) : null;
 
   document.getElementById('modal-image-title').textContent = img ? 'Modifier l\'image' : 'Ajouter une image';
   document.getElementById('img-drop-content').style.display = '';
@@ -548,8 +549,9 @@ async function saveImage() {
       if(currentOriginalDataUrl) img.originalDataUrl=currentOriginalDataUrl;
       // Invalider hostedUrl seulement si l'image a changé ET qu'on n'a pas re-uploadé
       if (img.hostedUrl && !currentHostedUrl && currentOriginalDataUrl && dataUrl !== img.dataUrl) { img.hostedUrl = null; }
-      // Appliquer le nouvel hostedUrl si uploadé manuellement pendant cette session
-      if (currentHostedUrl) { img.hostedUrl = currentHostedUrl; }
+      // Appliquer les URLs hébergées de cette session
+      if (currentHostedUrl)        { img.hostedUrl        = currentHostedUrl; }
+      if (currentCroppedHostedUrl) { img.croppedHostedUrl = currentCroppedHostedUrl; }
     }
     img.prenomId=selectedPrenomForImage?selectedPrenomForImage.id:null;
     img.tags=selectedTagsForImage.slice();
@@ -598,7 +600,7 @@ async function saveImage() {
     }
     if (!getImgbbKey()) toast('Image ajoutée.','success'); logHistory('Image ajoutée', 'image');
   }
-  currentOriginalDataUrl=null; currentHostedUrl=null;
+  currentOriginalDataUrl=null; currentHostedUrl=null; currentCroppedHostedUrl=null;
   document.getElementById('modal-image').classList.remove('open');
   editingImageId=null; selectedPrenomForImage=null;
   renderImages(); renderPrenoms(); updateStats();
@@ -904,15 +906,38 @@ document.getElementById('btn-upload-catbox').addEventListener('click', async () 
     bar.style.width = '100%';
     status.textContent = '✓ Hébergée avec succès';
 
-    // Sauvegarder l'URL dans l'objet image si déjà enregistrée
-    currentHostedUrl = url; // toujours mémoriser pour saveImage
-    if (editingImageId) {
-      const img = images.find(x=>x.id===editingImageId);
-      if (img) { img.hostedUrl = url; await dbPut('images', img); }
+    // Distinguer : héberge-t-on l'image recadrée ou l'originale ?
+    const _preview       = document.getElementById('img-preview');
+    const _showingOrig   = _preview.dataset.showingOriginal === 'true';
+    const _isStoringCrop = currentIsCropped && !_showingOrig;
+
+    if (_isStoringCrop) {
+      currentCroppedHostedUrl = url;
+    } else {
+      currentHostedUrl = url;
     }
-    // Toujours rafraîchir les cartes et la zone hébergée
-    renderImages();
-    showHostedZone({ hostedUrl: url });
+
+    if (editingImageId) {
+      const img = images.find(x => x.id === editingImageId);
+      if (img) {
+        if (_isStoringCrop) {
+          img.croppedHostedUrl = url;
+        } else {
+          img.hostedUrl = url;
+        }
+        await dbPut('images', img);
+        renderImages();
+        showHostedZone(img);
+        updateCropStatusUI(img.isCropped, img.originalDataUrl || null);
+      }
+    } else {
+      // Nouvelle image pas encore enregistrée
+      if (_isStoringCrop) {
+        showHostedZone({ isCropped: true, croppedHostedUrl: url, hostedUrl: currentHostedUrl });
+      } else {
+        showHostedZone({ isCropped: currentIsCropped, hostedUrl: url, croppedHostedUrl: currentCroppedHostedUrl });
+      }
+    }
 
     setTimeout(() => { progress.style.display='none'; bar.style.width='0%'; }, 1500);
     toast('Image hébergée sur imgbb !','success');
