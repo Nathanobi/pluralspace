@@ -825,6 +825,9 @@ document.getElementById('btn-img-crop').addEventListener('click', () => {
     document.getElementById('img-preview-wrap').style.display='';
     currentIsCropped = true;
     updateCropStatusUI(true, currentOriginalDataUrl, false);
+    // Mettre à jour la zone hébergée : recadrage pas encore hébergé
+    const _editImg = editingImageId ? images.find(x => x.id === editingImageId) : null;
+    showHostedZone(_editImg ? Object.assign({}, _editImg, { isCropped: true, croppedHostedUrl: null }) : null);
     toast('Image recadrée !','success'); logHistory('Image recadrée', 'image');
   });
 });
